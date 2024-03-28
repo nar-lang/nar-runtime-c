@@ -120,4 +120,6 @@ typedef enum {
 
 typedef void *nar_bytecode_t;
 
+static const nar_object_t INVALID_OBJECT = 0;
+
 #endif // NAR_H

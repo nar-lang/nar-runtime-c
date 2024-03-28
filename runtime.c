@@ -46,32 +46,36 @@ uint64_t string_hast_hash(const void *item, uint64_t seed0, uint64_t seed1) {
 bool library_register(
         runtime_t *rt, nar_string_t name, version_t version, nar_cstring_t libs_path,
         nar_ptr_t *out_handle) {
+    *out_handle = NULL;
     void *init_fn = NULL;
     size_t buf_size = strlen(libs_path) + strlen(name) + 20;
     char path[buf_size];
 
+    void *handle = NULL;
 #if defined(NAR_UNIX)
     snprintf(path, buf_size, "%s/lib%s.%d.so", libs_path, name, version);
-    out_handle = dlopen(path, RTLD_LAZY);
+    handle = dlopen(path, RTLD_LAZY);
 #endif
 #if defined(NAR_APPLE)
     snprintf(path, buf_size, "%s/lib%s.%d.dylib", libs_path, name, version);
-    out_handle = dlopen(path, RTLD_LAZY);
+    handle = dlopen(path, RTLD_LAZY);
 #endif
 #if defined(NAR_WINDOWS)
     snprintf(path, buf_size, "%s\\%s.%d.dll", libs_path, name, version);
-    out_handle = LoadLibrary(path);
+    handle = LoadLibrary(path);
 #endif
 
-    if (out_handle == NULL) {
+    if (handle == NULL) {
         return true;
     }
 
+    *out_handle = handle;
+
 #if defined(NAR_UNIX) || defined(NAR_APPLE)
-    init_fn = dlsym(out_handle, "init");
+    init_fn = dlsym(handle, "init");
 #endif
 #if defined(NAR_WINDOWS)
-    init_fn = GetProcAddress(out_handle, "nar_init");
+    init_fn = GetProcAddress(handle, "init");
 #endif
 
     if (init_fn == NULL) {
@@ -80,7 +84,8 @@ bool library_register(
         nar_fail(rt, err);
         return false;
     }
-    return 0 != ((init_fn_t) init_fn)(&package_pointers, rt);
+    nar_int_t result = ((init_fn_t) init_fn)(rt->package_pointers, rt);
+    return result;
 }
 
 void library_free(void *handle) {
@@ -95,6 +100,55 @@ void library_free(void *handle) {
 nar_runtime_t nar_runtime_new(nar_bytecode_t btc, nar_cstring_t libs_path) {
     runtime_t *rt = nar_alloc(sizeof(runtime_t));
     memset(rt, 0, sizeof(runtime_t));
+
+    rt->package_pointers = nar_alloc(sizeof(nar_t));
+    rt->package_pointers->alloc = &nar_alloc;
+    rt->package_pointers->realloc = &nar_realloc;
+    rt->package_pointers->free = &nar_free;
+    rt->package_pointers->frame_alloc = &nar_frame_alloc;
+    rt->package_pointers->register_def = &nar_register_def;
+    rt->package_pointers->apply = &nar_apply;
+    rt->package_pointers->apply_func = &nar_apply_func;
+    rt->package_pointers->print = &nar_print;
+    rt->package_pointers->fail = &nar_fail;
+    rt->package_pointers->get_last_error = &nar_get_last_error;
+    rt->package_pointers->object_get_kind = &nar_object_get_kind;
+    rt->package_pointers->object_is_valid = &nar_object_is_valid;
+    rt->package_pointers->new_unit = &nar_new_unit;
+    rt->package_pointers->to_unit = &nar_to_unit;
+    rt->package_pointers->new_char = &nar_new_char;
+    rt->package_pointers->to_char = &nar_to_char;
+    rt->package_pointers->new_int = &nar_new_int;
+    rt->package_pointers->to_int = &nar_to_int;
+    rt->package_pointers->new_float = &nar_new_float;
+    rt->package_pointers->to_float = &nar_to_float;
+    rt->package_pointers->new_string = &nar_new_string;
+    rt->package_pointers->to_string = &nar_to_string;
+    rt->package_pointers->new_record = &nar_new_record;
+    rt->package_pointers->new_record_field = &nar_new_record_field;
+    rt->package_pointers->new_record_field_obj = &nar_new_record_field_obj;
+    rt->package_pointers->new_record_raw = &nar_new_record_raw;
+    rt->package_pointers->to_record = &nar_to_record;
+    rt->package_pointers->to_record_field = &nar_to_record_field;
+    rt->package_pointers->to_record_item = &nar_to_record_item;
+    rt->package_pointers->new_list_cons = &nar_new_list_cons;
+    rt->package_pointers->new_list = &nar_new_list;
+    rt->package_pointers->to_list = &nar_to_list;
+    rt->package_pointers->to_list_item = &nar_to_list_item;
+    rt->package_pointers->new_tuple = &nar_new_tuple;
+    rt->package_pointers->to_tuple = &nar_to_tuple;
+    rt->package_pointers->to_tuple_item = &nar_to_tuple_item;
+    rt->package_pointers->new_option = &nar_new_option;
+    rt->package_pointers->to_option = &nar_to_option;
+    rt->package_pointers->to_option_item = &nar_to_option_item;
+    rt->package_pointers->new_bool = &nar_new_bool;
+    rt->package_pointers->to_bool = &nar_to_bool;
+    rt->package_pointers->new_func = &nar_new_func;
+    rt->package_pointers->to_func = &nar_to_func;
+    rt->package_pointers->new_native = &nar_new_native;
+    rt->package_pointers->to_native = &nar_to_native;
+    rt->package_pointers->new_closure = &nar_new_closure;
+    rt->package_pointers->to_closure = &nar_to_closure;
 
     rt->program = btc;
     rt->native_defs = hashmap_new(sizeof(native_def_item_t), 128, 0, 0,
@@ -158,6 +212,7 @@ void nar_runtime_free(nar_runtime_t rt) {
             library_free(*it);
         }
         vector_free(r->lib_handles);
+        nar_free(r->package_pointers);
         nar_free(rt);
     }
 }

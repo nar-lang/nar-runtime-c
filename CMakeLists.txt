@@ -2,8 +2,9 @@ cmake_minimum_required(VERSION 3.9)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ~/.nar/lib)
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ~/.nar/lib)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/include)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY  ~/.nar/bin)
+set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0")
 
 project(
         nar-runtime-c
@@ -22,7 +23,6 @@ add_library(nar-runtime SHARED
         include/vector.h
         memory.c
         object.c
-        package.c
         runtime.c
         runtime.h
 )
@@ -37,7 +37,6 @@ add_library(nar-runtime-c STATIC
         include/vector.h
         memory.c
         object.c
-        package.c
         runtime.c
         runtime.h
 )
@@ -54,4 +53,3 @@ target_link_libraries(nar-runtime)
 target_link_libraries(nar-runtime-c)
 
 target_link_libraries(nare nar-runtime-c)
-
