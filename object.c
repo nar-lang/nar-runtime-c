@@ -113,7 +113,7 @@ nar_object_t nar_new_record_field(
 
 nar_object_t nar_new_record_field_obj(
         nar_runtime_t rt, nar_object_t record, nar_object_t key, nar_object_t value) {
-    assert(nar_object_get_kind(rt, key) == NAR_OBJECT_KIND_STRING);
+    nar_assert(nar_object_get_kind(rt, key) == NAR_OBJECT_KIND_STRING);
     return insert(rt, NAR_OBJECT_KIND_RECORD,
             &(nar_record_item_t) {.key=key, .value = value, .parent = record});
 }
@@ -306,6 +306,7 @@ nar_bool_t nar_to_bool(nar_runtime_t rt, nar_object_t obj) {
         return nar_false;
     }
     nar_assert(!"expected boolean type");
+    return 0;
 }
 
 nar_object_t nar_new_func(nar_runtime_t rt, nar_ptr_t fn, nar_size_t arity) {

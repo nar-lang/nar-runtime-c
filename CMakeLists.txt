@@ -44,7 +44,7 @@ add_library(nar-runtime-c STATIC
 add_executable(nare main.c)
 
 add_compile_definitions(CVECTOR_LOGARITHMIC_GROWTH)
-#add_compile_definitions(NAR_UNSAFE)
+add_compile_definitions(NAR_UNSAFE)
 set_target_properties(nar-runtime-c PROPERTIES VERSION ${PROJECT_VERSION})
 set_target_properties(nar-runtime PROPERTIES VERSION ${PROJECT_VERSION})
 set_target_properties(nare PROPERTIES VERSION ${PROJECT_VERSION})
