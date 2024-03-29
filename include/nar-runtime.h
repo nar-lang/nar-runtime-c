@@ -31,7 +31,8 @@ void nar_runtime_free(nar_runtime_t rt);
 // Rest allowed for native packages
 
 void nar_register_def(
-        nar_runtime_t rt, nar_cstring_t module_name, nar_cstring_t def_name, nar_object_t def);
+        nar_runtime_t rt, nar_cstring_t module_name, nar_cstring_t def_name,
+        nar_cptr_t fn, nar_int_t arity);
 
 nar_object_t nar_apply(
         nar_runtime_t rt, nar_cstring_t name, nar_size_t num_args, const nar_object_t *args);

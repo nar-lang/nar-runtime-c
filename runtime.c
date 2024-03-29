@@ -43,10 +43,9 @@ uint64_t string_hast_hash(const void *item, uint64_t seed0, uint64_t seed1) {
     return hashmap_sip(i->string, strlen(i->string), seed0, seed1);
 }
 
-bool library_register(
-        runtime_t *rt, nar_string_t name, version_t version, nar_cstring_t libs_path,
-        nar_ptr_t *out_handle) {
-    *out_handle = NULL;
+nar_int_t library_register(
+        runtime_t *rt, nar_string_t name, version_t version, nar_cstring_t libs_path) {
+    rt->last_lib_handle = NULL;
     void *init_fn = NULL;
     size_t buf_size = strlen(libs_path) + strlen(name) + 20;
     char path[buf_size];
@@ -66,10 +65,10 @@ bool library_register(
 #endif
 
     if (handle == NULL) {
-        return true;
+        return 0;
     }
 
-    *out_handle = handle;
+    rt->last_lib_handle = handle;
 
 #if defined(NAR_UNIX) || defined(NAR_APPLE)
     init_fn = dlsym(handle, "init");
@@ -82,7 +81,7 @@ bool library_register(
         char err[1024];
         snprintf(err, 1024, "failed to find init function in library %s", path);
         nar_fail(rt, err);
-        return false;
+        return -1;
     }
     nar_int_t result = ((init_fn_t) init_fn)(rt->package_pointers, rt);
     return result;
@@ -107,6 +106,7 @@ nar_runtime_t nar_runtime_new(nar_bytecode_t btc, nar_cstring_t libs_path) {
     rt->package_pointers->free = &nar_free;
     rt->package_pointers->frame_alloc = &nar_frame_alloc;
     rt->package_pointers->register_def = &nar_register_def;
+    rt->package_pointers->register_def_dynamic = &nar_register_def_dynamic;
     rt->package_pointers->apply = &nar_apply;
     rt->package_pointers->apply_func = &nar_apply_func;
     rt->package_pointers->print = &nar_print;
@@ -183,12 +183,15 @@ nar_runtime_t nar_runtime_new(nar_bytecode_t btc, nar_cstring_t libs_path) {
     void *item;
     while (hashmap_iter(rt->program->packages, &it, &item)) {
         packages_item_t *pi = item;
-        nar_ptr_t handle;
-        if (!library_register(rt, pi->name, pi->version, libs_path, &handle)) {
-            library_free(handle);
+        if (0 != library_register(rt, pi->name, pi->version, libs_path)) {
+            library_free(rt->last_lib_handle);
+            char err[1024];
+            snprintf(err, 1024, "failed to register library %s", pi->name);
+            nar_fail(rt, err);
             break;
         }
-        vector_push(rt->lib_handles, 1, &handle);
+        vector_push(rt->lib_handles, 1, &rt->last_lib_handle);
+        rt->last_lib_handle = NULL;
     }
 
     return rt;
@@ -218,12 +221,34 @@ void nar_runtime_free(nar_runtime_t rt) {
 }
 
 void nar_register_def(
-        nar_runtime_t rt, nar_cstring_t module_name, nar_cstring_t def_name, nar_object_t def) {
+        nar_runtime_t rt, nar_cstring_t module_name, nar_cstring_t def_name,
+        nar_cptr_t fn, nar_int_t arity) {
     nar_string_t key = nar_alloc((strlen(module_name) + strlen(def_name) + 2));
     strcpy(key, module_name);
     strcat(key, ".");
     strcat(key, def_name);
-    hashmap_set(((runtime_t *) rt)->native_defs, &(native_def_item_t) {.name = key, .value = def});
+    hashmap_set(((runtime_t *) rt)->native_defs,
+            &(native_def_item_t) {.name = key, .fn = fn, .arity = arity});
+}
+
+void nar_register_def_dynamic(
+        nar_runtime_t rt, nar_cstring_t module_name, nar_cstring_t def_name,
+        nar_cstring_t func_name, nar_int_t arity) {
+    nar_cptr_t fn;
+#if defined(NAR_UNIX) || defined(NAR_APPLE)
+    fn = dlsym(((runtime_t *) rt)->last_lib_handle, func_name);
+#endif
+#if defined(NAR_WINDOWS)
+    init_fn = GetProcAddress(((runtime_t*)rt)->last_lib_handle, func_name);
+#endif
+
+    if (fn == NULL) {
+        char err[1024];
+        snprintf(err, 1024, "failed to find function %s in library", func_name);
+        nar_fail(rt, err);
+    }
+
+    nar_register_def(rt, module_name, def_name, fn, arity);
 }
 
 nar_object_t nar_apply(

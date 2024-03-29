@@ -290,61 +290,55 @@ nar_object_t execute(runtime_t *rt, const func_t *fn, vector_t *stack) { // NOLI
                     goto cleanup;
                 }
 
-                if (nar_object_get_kind(rt, def->value) == NAR_OBJECT_KIND_FUNCTION) {
-                    nar_object_t call_result = INVALID_OBJECT;
-                    nar_func_t func = nar_to_func(rt, def->value);
-                    size_t n = vector_size(stack);
-                    nar_object_t *args = nar_alloc(n * sizeof(nar_object_t));
-                    vector_pop(stack, n, args);
-                    switch (func.arity) {
-                        case 0:
-                            call_result = ((fn0_t) func.ptr)(rt);
-                            break;
-                        case 1:
-                            call_result = ((fn1_t) func.ptr)(rt, args[0]);
-                            break;
-                        case 2:
-                            call_result = ((fn2_t) func.ptr)(rt, args[0], args[1]);
-                            break;
-                        case 3:
-                            call_result = ((fn3_t) func.ptr)(rt, args[0], args[1], args[2]);
-                            break;
-                        case 4:
-                            call_result = ((fn4_t) func.ptr)(rt, args[0], args[1], args[2],
-                                    args[3]);
-                            break;
-                        case 5:
-                            call_result = ((fn5_t) func.ptr)(rt, args[0], args[1], args[2], args[3],
-                                    args[4]);
-                            break;
-                        case 6:
-                            call_result = ((fn6_t) func.ptr)(rt, args[0], args[1], args[2], args[3],
-                                    args[4], args[5]);
-                            break;
-                        case 7:
-                            call_result = ((fn7_t) func.ptr)(rt, args[0], args[1], args[2], args[3],
-                                    args[4], args[5], args[6]);
-                            break;
-                        case 8:
-                            call_result = ((fn8_t) func.ptr)(rt, args[0], args[1], args[2], args[3],
-                                    args[4], args[5], args[6], args[7]);
-                            break;
-                        default:
-                            nar_fail(rt, "function has too many parameters");
-                            goto cleanup;
-                    }
-                    nar_free(args);
-                    if (!nar_object_is_valid(rt, call_result)) {
-                        char err[1024];
-                        snprintf(err, 1024, "definition `%s` returned invalid object", name);
-                        nar_fail(rt, err);
+                nar_object_t call_result = INVALID_OBJECT;
+                size_t n = vector_size(stack);
+                nar_object_t *args = nar_alloc(n * sizeof(nar_object_t));
+                vector_pop(stack, n, args);
+                switch (def->arity) {
+                    case 0:
+                        call_result = (*(fn0_t) def->fn)(rt);
+                        break;
+                    case 1:
+                        call_result = ((fn1_t) def->fn)(rt, args[0]);
+                        break;
+                    case 2:
+                        call_result = ((fn2_t) def->fn)(rt, args[0], args[1]);
+                        break;
+                    case 3:
+                        call_result = ((fn3_t) def->fn)(rt, args[0], args[1], args[2]);
+                        break;
+                    case 4:
+                        call_result = ((fn4_t) def->fn)(rt, args[0], args[1], args[2],
+                                args[3]);
+                        break;
+                    case 5:
+                        call_result = ((fn5_t) def->fn)(rt, args[0], args[1], args[2], args[3],
+                                args[4]);
+                        break;
+                    case 6:
+                        call_result = ((fn6_t) def->fn)(rt, args[0], args[1], args[2], args[3],
+                                args[4], args[5]);
+                        break;
+                    case 7:
+                        call_result = ((fn7_t) def->fn)(rt, args[0], args[1], args[2], args[3],
+                                args[4], args[5], args[6]);
+                        break;
+                    case 8:
+                        call_result = ((fn8_t) def->fn)(rt, args[0], args[1], args[2], args[3],
+                                args[4], args[5], args[6], args[7]);
+                        break;
+                    default:
+                        nar_fail(rt, "function has too many parameters");
                         goto cleanup;
-                    }
-                    vector_push(stack, 1, &call_result);
-                } else {
-                    nar_fail(rt, "definition is not a function");
+                }
+                nar_free(args);
+                if (!nar_object_is_valid(rt, call_result)) {
+                    char err[1024];
+                    snprintf(err, 1024, "definition `%s` returned invalid object", name);
+                    nar_fail(rt, err);
                     goto cleanup;
                 }
+                vector_push(stack, 1, &call_result);
                 break;
             }
             case OP_KIND_JUMP:
