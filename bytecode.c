@@ -81,97 +81,98 @@ void packages_item_free(void *item) {
     nar_free((nar_string_t) i->name);
 }
 
-nar_result_t bytecode_load_binary(size_t size, uint8_t *data, bytecode_t *out_bc) {
+bool bytecode_load_binary(bytecode_t *btc, size_t size, uint8_t *data) {
     const uint8_t *limit = data + size;
-    *out_bc = (bytecode_t) {0};
 
     uint32_t signature;
     read_u32(limit, &data, &signature);
     if (signature != k_signature) {
-        return NAR_RESULT_SIGNATURE_MISMATCH;
+        nar_fail(NULL, "Invalid bytecode signature");
+        return false;
     }
 
     uint32_t format_version;
     read_u32(limit, &data, &format_version);
     if (format_version != k_formatVersion) {
-        return NAR_RESULT_UNSUPPORTED_FORMAT_VERSION;
+        nar_fail(NULL, "Unsupported bytecode format version");
+        return false;
     }
 
-    if (!read_u32(limit, &data, &out_bc->compiler_version)) {
-        return NAR_RESULT_UNEXPECTED_END;
+    if (!read_u32(limit, &data, &btc->compiler_version)) {
+        goto eol;
     }
     uint8_t debug;
     if (!read_u8(limit, &data, &debug)) {
-        return NAR_RESULT_UNEXPECTED_END;
+        goto eol;
     }
 
-    if (!read_string(limit, &data, &out_bc->entry)) {
-        return NAR_RESULT_UNEXPECTED_END;
+    if (!read_string(limit, &data, &btc->entry)) {
+        goto eol;
     }
 
-    if (!read_u32(limit, &data, &out_bc->num_strings)) {
-        return NAR_RESULT_UNEXPECTED_END;
+    if (!read_u32(limit, &data, &btc->num_strings)) {
+        goto eol;
     }
-    out_bc->strings = (nar_string_t *) nar_alloc(out_bc->num_strings * sizeof(nar_string_t));
-    for (size_t i = 0; i < out_bc->num_strings; i++) {
-        if (!read_string(limit, &data, &out_bc->strings[i])) {
-            return NAR_RESULT_UNEXPECTED_END;
+    btc->strings = (nar_string_t *) nar_alloc(btc->num_strings * sizeof(nar_string_t));
+    for (size_t i = 0; i < btc->num_strings; i++) {
+        if (!read_string(limit, &data, &btc->strings[i])) {
+            goto eol;
         }
     }
 
-    if (!read_u32(limit, &data, &out_bc->num_constants)) {
-        return NAR_RESULT_UNEXPECTED_END;
+    if (!read_u32(limit, &data, &btc->num_constants)) {
+        goto eol;
     }
-    out_bc->constants = (hashed_const_t *) nar_alloc(
-            out_bc->num_constants * sizeof(hashed_const_t));
-    for (size_t i = 0; i < out_bc->num_constants; i++) {
+    btc->constants = (hashed_const_t *) nar_alloc(
+            btc->num_constants * sizeof(hashed_const_t));
+    for (size_t i = 0; i < btc->num_constants; i++) {
         uint8_t kind;
         if (!read_u8(limit, &data, &kind)) {
-            return NAR_RESULT_UNEXPECTED_END;
+            goto eol;
         }
-        out_bc->constants[i].kind = (hashed_const_kind_t) kind;
-        if (!read_u64(limit, &data, &out_bc->constants[i].hashed_value)) {
-            return NAR_RESULT_UNEXPECTED_END;
+        btc->constants[i].kind = (hashed_const_kind_t) kind;
+        if (!read_u64(limit, &data, &btc->constants[i].hashed_value)) {
+            goto eol;
         }
     }
 
-    if (!read_u32(limit, &data, &out_bc->num_functions)) {
-        return NAR_RESULT_UNEXPECTED_END;
+    if (!read_u32(limit, &data, &btc->num_functions)) {
+        goto eol;
     }
-    out_bc->functions = (func_t *) nar_alloc(out_bc->num_functions * sizeof(func_t));
-    for (size_t i = 0; i < out_bc->num_functions; i++) {
-        func_t *f = &out_bc->functions[i];
+    btc->functions = (func_t *) nar_alloc(btc->num_functions * sizeof(func_t));
+    for (size_t i = 0; i < btc->num_functions; i++) {
+        func_t *f = &btc->functions[i];
 
         index_t name_index;
         if (!read_u32(limit, &data, &name_index)) {
-            return NAR_RESULT_UNEXPECTED_END;
+            goto eol;
         }
 
-        f->name = out_bc->strings[name_index];
+        f->name = btc->strings[name_index];
 
         if (!read_u32(limit, &data, &f->num_args)) {
-            return NAR_RESULT_UNEXPECTED_END;
+            goto eol;
         }
         if (!read_u32(limit, &data, &f->num_ops)) {
-            return NAR_RESULT_UNEXPECTED_END;
+            goto eol;
         }
         f->ops = nar_alloc(f->num_ops * sizeof(op_t));
         for (size_t j = 0; j < f->num_ops; j++) {
             if (!read_u64(limit, &data, &f->ops[j])) {
-                return NAR_RESULT_UNEXPECTED_END;
+                goto eol;
             }
         }
         if (debug) {
             if (!read_string(limit, &data, &f->file_path)) {
-                return NAR_RESULT_UNEXPECTED_END;
+                goto eol;
             }
             f->locations = nar_alloc(f->num_ops * sizeof(location_t));
             for (size_t j = 0; j < f->num_ops; j++) {
                 if (!read_u32(limit, &data, &f->locations[j].line)) {
-                    return NAR_RESULT_UNEXPECTED_END;
+                    goto eol;
                 }
                 if (!read_u32(limit, &data, &f->locations[j].column)) {
-                    return NAR_RESULT_UNEXPECTED_END;
+                    goto eol;
                 }
             }
         }
@@ -179,48 +180,54 @@ nar_result_t bytecode_load_binary(size_t size, uint8_t *data, bytecode_t *out_bc
 
     uint32_t num_exports;
     if (!read_u32(limit, &data, &num_exports)) {
-        return NAR_RESULT_UNEXPECTED_END;
+        goto eol;
     }
-    out_bc->exports = hashmap_new(sizeof(exports_item_t), num_exports,
+    btc->exports = hashmap_new(sizeof(exports_item_t), num_exports,
             0, 0, &exports_item_hash, &exports_item_compare, &exports_item_free, NULL);
     for (size_t i = 0; i < num_exports; i++) {
         exports_item_t item = {0};
         nar_string_t name;
         if (!read_string(limit, &data, &name)) {
-            return NAR_RESULT_UNEXPECTED_END;
+            goto eol;
         }
         item.name = name;
         if (!read_u32(limit, &data, &item.index)) {
-            return NAR_RESULT_UNEXPECTED_END;
+            goto eol;
         }
-        hashmap_set(out_bc->exports, &item);
+        hashmap_set(btc->exports, &item);
     }
 
     uint32_t num_packages;
     if (!read_u32(limit, &data, &num_packages)) {
-        return NAR_RESULT_UNEXPECTED_END;
+        goto eol;
     }
-    out_bc->packages = hashmap_new(sizeof(packages_item_t), num_packages,
+    btc->packages = hashmap_new(sizeof(packages_item_t), num_packages,
             0, 0, &packages_item_hash, &packages_item_compare, &packages_item_free, NULL);
     for (size_t i = 0; i < num_packages; i++) {
         packages_item_t item = {0};
         if (!read_string(limit, &data, &item.name)) {
-            return NAR_RESULT_UNEXPECTED_END;
+            goto eol;
         }
         if (!read_u32(limit, &data, &item.version)) {
-            return NAR_RESULT_UNEXPECTED_END;
+            goto eol;
         }
-        hashmap_set(out_bc->packages, &item);
+        hashmap_set(btc->packages, &item);
     }
 
-    return NAR_RESULT_OK;
+    return true;
+    eol:
+    nar_fail(NULL, "Unexpected end of bytecode");
+    return false;
 }
 
-nar_result_t nar_bytecode_new(nar_size_t size, const nar_byte_t *data, nar_bytecode_t *out_btc) {
+nar_bytecode_t nar_bytecode_new(nar_size_t size, const nar_byte_t *data) {
     bytecode_t *btc = nar_alloc(sizeof(bytecode_t));
-    memset(btc, 0, sizeof (bytecode_t));
-    *out_btc = btc;
-    return bytecode_load_binary(size, (nar_byte_t*)data, btc);
+    memset(btc, 0, sizeof(bytecode_t));
+    if (!bytecode_load_binary(btc, size, (nar_byte_t *) data)) {
+        nar_bytecode_free(btc);
+        return NULL;
+    }
+    return btc;
 }
 
 nar_cstring_t nar_bytecode_get_entry(nar_bytecode_t btc) {

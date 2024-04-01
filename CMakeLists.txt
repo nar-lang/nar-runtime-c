@@ -1,9 +1,10 @@
 cmake_minimum_required(VERSION 3.9)
 
+set(USER_HOME $ENV{HOME})
 set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ~/.nar/lib)
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/include)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY  ~/.nar/bin)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${USER_HOME}/.nar/lib)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${USER_HOME}/.nar/include)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY  ${USER_HOME}/.nar/bin)
 set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0")
 
 project(
@@ -45,11 +46,10 @@ add_executable(nare main.c)
 
 add_compile_definitions(CVECTOR_LOGARITHMIC_GROWTH)
 add_compile_definitions(NAR_UNSAFE)
-set_target_properties(nar-runtime-c PROPERTIES VERSION ${PROJECT_VERSION})
-set_target_properties(nar-runtime PROPERTIES VERSION ${PROJECT_VERSION})
-set_target_properties(nare PROPERTIES VERSION ${PROJECT_VERSION})
 
 target_link_libraries(nar-runtime)
 target_link_libraries(nar-runtime-c)
 
 target_link_libraries(nare nar-runtime-c)
+
+file(COPY include DESTINATION ${USER_HOME}/.nar)

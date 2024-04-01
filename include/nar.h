@@ -20,7 +20,6 @@ typedef void *nar_runtime_t;
 typedef size_t nar_size_t;
 
 typedef uint8_t nar_bool_t;
-typedef uint8_t nar_bool_t;
 #define nar_false 0
 #define nar_true 1
 typedef uint8_t nar_byte_t;
@@ -33,6 +32,7 @@ typedef const char *nar_cstring_t; //in utf-8
 typedef void *nar_ptr_t;
 typedef void *nar_cptr_t;
 typedef nar_int_t (*nar_cmp_native_fn_t)(nar_runtime_t rt, nar_cptr_t a, nar_cptr_t b);
+typedef void (*nar_stdout_fn_t)(nar_runtime_t rt, nar_cstring_t message);
 typedef uint64_t nar_object_t;
 
 typedef struct {
@@ -110,13 +110,6 @@ typedef enum {
     NAR_OBJECT_KIND_PATTERN = 13,
     NAR_OBJECT_KIND__COUNT = 14,
 } nar_object_kind_t;
-
-typedef enum {
-    NAR_RESULT_OK = 0,
-    NAR_RESULT_UNEXPECTED_END = 1,
-    NAR_RESULT_SIGNATURE_MISMATCH = 2,
-    NAR_RESULT_UNSUPPORTED_FORMAT_VERSION = 3,
-} nar_result_t;
 
 typedef void *nar_bytecode_t;
 

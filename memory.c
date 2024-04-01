@@ -46,7 +46,7 @@ void nar_free(nar_ptr_t mem) {
     free(mem);
 }
 
-void *nar_frame_alloc(nar_runtime_t rt, nar_size_t size) {
+nar_ptr_t nar_frame_alloc(nar_runtime_t rt, nar_size_t size) {
     nar_ptr_t ptr = nar_alloc(size);
     vector_push(((runtime_t *) rt)->frame_memory, 1, &ptr);
     return ptr;

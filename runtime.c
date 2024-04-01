@@ -16,6 +16,8 @@
 #include "runtime.h"
 #include "include/nar-runtime.h"
 
+nar_string_t general_last_error = NULL;
+
 int native_def_item_compare(const void *a, const void *b, __attribute__((unused)) void *data) {
     const native_def_item_t *ia = a;
     const native_def_item_t *ib = b;
@@ -43,60 +45,27 @@ uint64_t string_hast_hash(const void *item, uint64_t seed0, uint64_t seed1) {
     return hashmap_sip(i->string, strlen(i->string), seed0, seed1);
 }
 
-nar_int_t library_register(
-        runtime_t *rt, nar_string_t name, version_t version, nar_cstring_t libs_path) {
-    rt->last_lib_handle = NULL;
-    void *init_fn = NULL;
-    size_t buf_size = strlen(libs_path) + strlen(name) + 20;
-    char path[buf_size];
-
-    void *handle = NULL;
-#if defined(NAR_UNIX)
-    snprintf(path, buf_size, "%s/lib%s.%d.so", libs_path, name, version);
-    handle = dlopen(path, RTLD_LAZY);
-#endif
-#if defined(NAR_APPLE)
-    snprintf(path, buf_size, "%s/lib%s.%d.dylib", libs_path, name, version);
-    handle = dlopen(path, RTLD_LAZY);
-#endif
-#if defined(NAR_WINDOWS)
-    snprintf(path, buf_size, "%s\\%s.%d.dll", libs_path, name, version);
-    handle = LoadLibrary(path);
-#endif
-
-    if (handle == NULL) {
-        return 0;
-    }
-
-    rt->last_lib_handle = handle;
-
-#if defined(NAR_UNIX) || defined(NAR_APPLE)
-    init_fn = dlsym(handle, "init");
-#endif
-#if defined(NAR_WINDOWS)
-    init_fn = GetProcAddress(handle, "init");
-#endif
-
-    if (init_fn == NULL) {
-        char err[1024];
-        snprintf(err, 1024, "failed to find init function in library %s", path);
-        nar_fail(rt, err);
-        return -1;
-    }
-    nar_int_t result = ((init_fn_t) init_fn)(rt->package_pointers, rt);
-    return result;
+int metadata_item_compare(const void *a, const void *b, __attribute__((unused)) void *data) {
+    const metadata_item_t *ia = a;
+    const metadata_item_t *ib = b;
+    return strcmp(ia->name, ib->name);
 }
 
-void library_free(void *handle) {
-#if defined(NAR_UNIX) || defined(NAR_APPLE)
-    dlclose(handle);
-#endif
-#if defined(NAR_WINDOWS)
-    FreeLibrary(handle);
-#endif
+uint64_t metadata_item_hash(const void *item, uint64_t seed0, uint64_t seed1) {
+    const metadata_item_t *i = item;
+    return hashmap_sip(i->name, strlen(i->name), seed0, seed1);
 }
 
-nar_runtime_t nar_runtime_new(nar_bytecode_t btc, nar_cstring_t libs_path) {
+void metadata_item_free(void *item) {
+    metadata_item_t *i = item;
+    nar_free((nar_string_t) i->name);
+}
+
+void default_stdout(__attribute__((unused)) nar_runtime_t rt, nar_cstring_t msg) {
+    printf("%s\n", msg);
+}
+
+nar_runtime_t nar_runtime_new(nar_bytecode_t btc) {
     runtime_t *rt = nar_alloc(sizeof(runtime_t));
     memset(rt, 0, sizeof(runtime_t));
 
@@ -105,6 +74,8 @@ nar_runtime_t nar_runtime_new(nar_bytecode_t btc, nar_cstring_t libs_path) {
     rt->package_pointers->realloc = &nar_realloc;
     rt->package_pointers->free = &nar_free;
     rt->package_pointers->frame_alloc = &nar_frame_alloc;
+    rt->package_pointers->set_metadata = &nar_set_metadata;
+    rt->package_pointers->get_metadata = &nar_get_metadata;
     rt->package_pointers->register_def = &nar_register_def;
     rt->package_pointers->register_def_dynamic = &nar_register_def_dynamic;
     rt->package_pointers->apply = &nar_apply;
@@ -176,25 +147,22 @@ nar_runtime_t nar_runtime_new(nar_bytecode_t btc, nar_cstring_t libs_path) {
     rt->call_stack = rvector_new(sizeof(nar_string_t), 32);
     rt->lib_handles = rvector_new(sizeof(nar_ptr_t), 0);
     rt->last_error = NULL;
+    rt->metadata = hashmap_new(sizeof(metadata_item_t), 128, 0, 0,
+            &metadata_item_hash, &metadata_item_compare, &metadata_item_free, NULL);
+
+    nar_set_stdout(rt, NULL);
 
     nar_frame_free(rt);
-
-    size_t it = 0;
-    void *item;
-    while (hashmap_iter(rt->program->packages, &it, &item)) {
-        packages_item_t *pi = item;
-        if (0 != library_register(rt, pi->name, pi->version, libs_path)) {
-            library_free(rt->last_lib_handle);
-            char err[1024];
-            snprintf(err, 1024, "failed to register library %s", pi->name);
-            nar_fail(rt, err);
-            break;
-        }
-        vector_push(rt->lib_handles, 1, &rt->last_lib_handle);
-        rt->last_lib_handle = NULL;
-    }
-
     return rt;
+}
+
+void library_free(void *handle) {
+#if defined(NAR_UNIX) || defined(NAR_APPLE)
+    dlclose(handle);
+#endif
+#if defined(NAR_WINDOWS)
+    FreeLibrary(handle);
+#endif
 }
 
 void nar_runtime_free(nar_runtime_t rt) {
@@ -216,13 +184,14 @@ void nar_runtime_free(nar_runtime_t rt) {
         }
         vector_free(r->lib_handles);
         nar_free(r->package_pointers);
+        hashmap_free(r->metadata);
         nar_free(rt);
     }
 }
 
 void nar_register_def(
         nar_runtime_t rt, nar_cstring_t module_name, nar_cstring_t def_name,
-        nar_cptr_t fn, nar_int_t arity) {
+        nar_cptr_t fn, nar_size_t arity) {
     nar_string_t key = nar_alloc((strlen(module_name) + strlen(def_name) + 2));
     strcpy(key, module_name);
     strcat(key, ".");
@@ -233,7 +202,7 @@ void nar_register_def(
 
 void nar_register_def_dynamic(
         nar_runtime_t rt, nar_cstring_t module_name, nar_cstring_t def_name,
-        nar_cstring_t func_name, nar_int_t arity) {
+        nar_cstring_t func_name, nar_size_t arity) {
     nar_cptr_t fn;
 #if defined(NAR_UNIX) || defined(NAR_APPLE)
     fn = dlsym(((runtime_t *) rt)->last_lib_handle, func_name);
@@ -298,16 +267,29 @@ nar_object_t nar_apply_func( // NOLINT(*-no-recursion)
     return result;
 }
 
-void nar_print(__attribute__((unused)) nar_runtime_t rt, nar_cstring_t message) {
-    printf("%s\n", message);
+void nar_print(nar_runtime_t rt, nar_cstring_t message) {
+    ((runtime_t *) rt)->stdout(rt, message);
 }
 
 void nar_fail(nar_runtime_t rt, nar_cstring_t message) {
+    if (rt == NULL) {
+        if (general_last_error != NULL) {
+            free(general_last_error);
+        }
+        general_last_error = strdup(message);
+        return;
+    }
     runtime_t *r = (runtime_t *) rt;
     if (r->last_error != NULL) {
+        nar_string_t combined = nar_alloc(strlen(r->last_error) + strlen(message) + 2);
+        strcpy(combined, r->last_error);
+        strcat(combined, "\n");
+        strcat(combined, message);
         nar_free(r->last_error);
+        r->last_error = combined;
+    } else {
+        r->last_error = string_dup(message);
     }
-    r->last_error = string_dup(message);
 #ifndef NAR_UNSAFE
     printf("%s\n", message);
     vector_t *stack = ((runtime_t *) r)->call_stack;
@@ -319,7 +301,95 @@ void nar_fail(nar_runtime_t rt, nar_cstring_t message) {
 }
 
 nar_cstring_t nar_get_last_error(nar_runtime_t rt) {
+    if (rt == NULL) {
+        return general_last_error;
+    }
     return ((runtime_t *) rt)->last_error;
+}
+
+void nar_set_metadata(nar_runtime_t rt, nar_cstring_t key, nar_cptr_t value) {
+    runtime_t *r = (runtime_t *) rt;
+    hashmap_set(r->metadata, &(metadata_item_t) {.name = string_dup(key), .value = value});
+}
+
+nar_cptr_t nar_get_metadata(nar_runtime_t rt, nar_cstring_t key) {
+    runtime_t *r = (runtime_t *) rt;
+    const metadata_item_t *item = hashmap_get(
+            r->metadata, &(metadata_item_t) {.name = (nar_string_t) key});
+    return item == NULL ? NULL : item->value;
+}
+
+void nar_set_stdout(nar_runtime_t rt, nar_stdout_fn_t stdout) {
+    runtime_t *r = (runtime_t *) rt;
+    if (stdout == NULL) {
+        stdout = default_stdout;
+    }
+    r->stdout = stdout;
+}
+
+nar_int_t library_register(
+        runtime_t *rt, nar_string_t name, version_t version, nar_cstring_t libs_path) {
+    rt->last_lib_handle = NULL;
+    void *init_fn = NULL;
+    size_t buf_size = strlen(libs_path) + strlen(name) + 20;
+    char path[buf_size];
+
+    void *handle = NULL;
+#if defined(NAR_UNIX)
+    snprintf(path, buf_size, "%s/lib%s.%d.so", libs_path, name, version);
+    handle = dlopen(path, RTLD_LAZY);
+#endif
+#if defined(NAR_APPLE)
+    snprintf(path, buf_size, "%s/lib%s.%d.dylib", libs_path, name, version);
+    handle = dlopen(path, RTLD_LAZY);
+#endif
+#if defined(NAR_WINDOWS)
+    snprintf(path, buf_size, "%s\\%s.%d.dll", libs_path, name, version);
+    handle = LoadLibrary(path);
+#endif
+
+    if (handle == NULL) {
+        return 0;
+    }
+
+    rt->last_lib_handle = handle;
+
+#if defined(NAR_UNIX) || defined(NAR_APPLE)
+    init_fn = dlsym(handle, "init");
+#endif
+#if defined(NAR_WINDOWS)
+    init_fn = GetProcAddress(handle, "init");
+#endif
+
+    if (init_fn == NULL) {
+        char err[1024];
+        snprintf(err, 1024, "failed to find init function in library %s", path);
+        nar_fail(rt, err);
+        return -1;
+    }
+    nar_int_t result = ((init_fn_t) init_fn)(rt->package_pointers, rt);
+    return result;
+}
+
+nar_bool_t nar_register_libs(nar_runtime_t rt, nar_cstring_t libs_path) {
+    runtime_t *r = (runtime_t *) rt;
+    size_t it = 0;
+    void *item;
+    while (hashmap_iter(r->program->packages, &it, &item)) {
+        packages_item_t *pi = item;
+        if (0 != library_register(r, pi->name, pi->version, libs_path)) {
+            library_free(r->last_lib_handle);
+            r->last_lib_handle = NULL;
+
+            char err[1024];
+            snprintf(err, 1024, "failed to register library %s", pi->name);
+            nar_fail(rt, err);
+            return false;
+        }
+        vector_push(r->lib_handles, 1, &r->last_lib_handle);
+        r->last_lib_handle = NULL;
+    }
+    return true;
 }
 
 nar_string_t frame_string_dup(runtime_t *rt, nar_cstring_t str) {

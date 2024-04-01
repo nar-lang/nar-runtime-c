@@ -41,10 +41,11 @@ int main(int argc, char *argv[]) {
     fread(binary, 1, file_size, file);
     fclose(file);
 
-    int result = nar_bytecode_new(file_size, binary, &btc);
+    btc = nar_bytecode_new(file_size, binary);
     nar_free(binary);
-    if (result != 0) {
-        printf("Error: could not load bytecode from file %s (error code %d)\n", argv[1], result);
+    if (btc == 0 || nar_get_last_error(NULL) != NULL) {
+        printf("Error: could not load bytecode from file %s (%s)\n", argv[1],
+                nar_get_last_error(NULL));
         errno = -4;
         goto cleanup;
     }
@@ -52,7 +53,7 @@ int main(int argc, char *argv[]) {
     char libs_path[1024];
     if (getenv("NAR_LIBS_PATH") != NULL) {
         strncpy(libs_path, getenv("NAR_LIBS_PATH"), 1024);
-    }else {
+    } else {
         strncpy(libs_path, argv[argc - 1], 1024);
         char *last_slash = strrchr(libs_path, '/');
         if (last_slash != NULL) {
@@ -62,10 +63,10 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    rt = nar_runtime_new(btc, libs_path);
+    rt = nar_runtime_new(btc);
 
-    nar_cstring_t err = nar_get_last_error(rt);
-    if (err != NULL) {
+    if (!nar_register_libs(rt, libs_path)) {
+        nar_cstring_t err = nar_get_last_error(rt);
         printf("Error: could not create runtime (error message: %s)\n", err);
         errno = -5;
         goto cleanup;
@@ -86,7 +87,7 @@ int main(int argc, char *argv[]) {
     nar_bytecode_free(btc);
 
     if (allocated_memory != 0) {
-        errno = (int)allocated_memory;
+        errno = (int) allocated_memory;
     }
     return errno;
 }

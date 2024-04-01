@@ -18,8 +18,13 @@ typedef struct {
 typedef struct {
     nar_cstring_t name;
     nar_cptr_t fn;
-    nar_int_t arity;
+    nar_size_t arity;
 } native_def_item_t;
+
+typedef struct {
+    nar_string_t name;
+    nar_cptr_t value;
+} metadata_item_t;
 
 typedef struct {
     pattern_kind_t kind;
@@ -44,6 +49,8 @@ typedef struct {
     void* last_lib_handle;
     nar_t *package_pointers;
     nar_string_t last_error;
+    hashmap_t *metadata; // of metadata_item_t
+    nar_stdout_fn_t stdout;
     //TODO: vector_t stack; // of nar_object_t -- introduce single stack for objects
     //TODO: vector_t patterns; // of nar_object_t -- introduce single stack for patterns
 } runtime_t;
@@ -58,7 +65,7 @@ nar_string_t frame_string_dup(runtime_t *rt, nar_cstring_t str);
 nar_string_t string_dup(nar_cstring_t str);
 void nar_register_def_dynamic(
         nar_runtime_t rt, nar_cstring_t module_name, nar_cstring_t def_name,
-        nar_cstring_t func_name, nar_int_t arity);
+        nar_cstring_t func_name, nar_size_t arity);
 
 #define index_is_valid(obj) ((obj!=0) && ((obj & INVALID_INDEX)==0))
 

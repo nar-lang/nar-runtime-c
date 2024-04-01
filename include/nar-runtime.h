@@ -11,12 +11,12 @@ nar_ptr_t nar_realloc(nar_ptr_t mem, nar_size_t size);
 
 void nar_free(nar_ptr_t mem);
 
-void *nar_frame_alloc(nar_runtime_t rt, nar_size_t size);
+nar_ptr_t nar_frame_alloc(nar_runtime_t rt, nar_size_t size);
 
 void nar_frame_free(nar_runtime_t rt);
 
 // Bytecode API
-nar_result_t nar_bytecode_new(nar_size_t size, const nar_byte_t *data, nar_bytecode_t *out_btc);
+nar_bytecode_t nar_bytecode_new(nar_size_t size, const nar_byte_t *data);
 
 nar_cstring_t nar_bytecode_get_entry(nar_bytecode_t btc);
 
@@ -24,15 +24,21 @@ void nar_bytecode_free(nar_bytecode_t bc);
 
 // Runtime API
 
-nar_runtime_t nar_runtime_new(nar_bytecode_t btc, nar_cstring_t libs_path);
+nar_runtime_t nar_runtime_new(nar_bytecode_t btc);
 
 void nar_runtime_free(nar_runtime_t rt);
 
-// Rest allowed for native packages
+void nar_set_metadata(nar_runtime_t rt, nar_cstring_t key, nar_cptr_t value);
+
+nar_cptr_t nar_get_metadata(nar_runtime_t rt, nar_cstring_t key);
+
+void nar_set_stdout(nar_runtime_t rt, nar_stdout_fn_t stdout);
+
+nar_bool_t nar_register_libs(nar_runtime_t rt, nar_cstring_t libs_path);
 
 void nar_register_def(
         nar_runtime_t rt, nar_cstring_t module_name, nar_cstring_t def_name,
-        nar_cptr_t fn, nar_int_t arity);
+        nar_cptr_t fn, nar_size_t arity);
 
 nar_object_t nar_apply(
         nar_runtime_t rt, nar_cstring_t name, nar_size_t num_args, const nar_object_t *args);

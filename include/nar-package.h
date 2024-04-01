@@ -16,16 +16,20 @@ typedef struct {
 
     // Runtime API
 
+    void (*set_metadata)(nar_runtime_t rt, nar_cstring_t key, nar_cptr_t value);
+
+    nar_cptr_t (*get_metadata)(nar_runtime_t rt, nar_cstring_t key);
+
     nar_object_t (*apply)(
             nar_runtime_t rt, nar_cstring_t name, nar_size_t num_args, const nar_object_t *args);
 
     void (*register_def)(
             nar_runtime_t rt, nar_cstring_t module_name, nar_cstring_t def_name,
-            nar_cptr_t fn, nar_int_t arity);
+            nar_cptr_t fn, nar_size_t arity);
 
     void (*register_def_dynamic)(
             nar_runtime_t rt, nar_cstring_t module_name, nar_cstring_t def_name,
-            nar_cstring_t func_name, nar_int_t arity);
+            nar_cstring_t func_name, nar_size_t arity);
 
     nar_object_t (*apply_func)(
             nar_runtime_t rt, nar_object_t fn, nar_size_t num_args, const nar_object_t *args);
