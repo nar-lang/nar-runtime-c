@@ -3,15 +3,24 @@
 #include <string.h>
 #include <locale.h>
 #include "include/nar-runtime.h"
-#include "runtime.h"
+
+nar_bytecode_t btc = NULL;
+
+void nar_print_memory();
+
+
+void clean_and_exit(nar_runtime_t rt, int code) {
+    nar_runtime_free(rt);
+    nar_bytecode_free(btc);
+    nar_print_memory();
+    exit(code);
+}
 
 int main(int argc, char *argv[]) {
+    nar_runtime_t rt = NULL;
     setlocale(LC_ALL, ".UTF8");
 
     int errno = 0;
-    nar_runtime_t rt = NULL;
-    nar_bytecode_t btc = NULL;
-
     if (argc < 2) {
         printf("Usage: %s <binary-file-path>\n", argv[0]);
         errno = -1;
@@ -76,18 +85,21 @@ int main(int argc, char *argv[]) {
 
     nar_object_t result_obj = nar_apply(rt, entry_point, 0, NULL);
     if (!nar_object_is_valid(rt, result_obj)) {
-        printf("Error: could not execute entry point %s (error message: %s)\n",
+        printf("Error: could not execute_program entry point %s (error message: %s)\n",
                 entry_point, nar_get_last_error(rt));
         errno = -6;
         goto cleanup;
     }
 
-    cleanup:
-    nar_runtime_free(rt);
-    nar_bytecode_free(btc);
-
-    if (allocated_memory != 0) {
-        errno = (int) allocated_memory;
+    typedef void (*execute_fn_t)(
+            nar_runtime_t rt,
+            nar_object_t program,
+            void (*exit)(nar_runtime_t rt, int code));
+    execute_fn_t execute = nar_get_metadata(rt, "Nar.Program:execute");
+    if (execute != NULL) {
+        execute(rt, result_obj, clean_and_exit);
     }
-    return errno;
+
+    cleanup:
+    clean_and_exit(rt, errno);
 }

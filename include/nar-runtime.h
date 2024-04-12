@@ -58,36 +58,38 @@ nar_object_kind_t nar_object_get_kind(__attribute__((unused)) nar_runtime_t rt, 
 
 nar_bool_t nar_object_is_valid(__attribute__((unused)) nar_runtime_t rt, nar_object_t obj);
 
-nar_object_t nar_new_unit(__attribute__((unused)) nar_runtime_t rt);
+nar_bool_t nar_index_is_valid(__attribute__((unused)) nar_runtime_t rt, nar_object_t obj);
+
+nar_object_t nar_make_unit(__attribute__((unused)) nar_runtime_t rt);
 
 void nar_to_unit(nar_runtime_t rt, nar_object_t obj);
 
-nar_object_t nar_new_char(nar_runtime_t rt, nar_char_t value);
+nar_object_t nar_make_char(nar_runtime_t rt, nar_char_t value);
 
 nar_char_t nar_to_char(nar_runtime_t rt, nar_object_t obj);
 
-nar_object_t nar_new_int(nar_runtime_t rt, nar_int_t value);
+nar_object_t nar_make_int(nar_runtime_t rt, nar_int_t value);
 
 nar_int_t nar_to_int(nar_runtime_t rt, nar_object_t obj);
 
-nar_object_t nar_new_float(nar_runtime_t rt, nar_float_t value);
+nar_object_t nar_make_float(nar_runtime_t rt, nar_float_t value);
 
 nar_float_t nar_to_float(nar_runtime_t rt, nar_object_t obj);
 
-nar_object_t nar_new_string(nar_runtime_t rt, nar_cstring_t value);
+nar_object_t nar_make_string(nar_runtime_t rt, nar_cstring_t value);
 
 nar_cstring_t nar_to_string(nar_runtime_t rt, nar_object_t obj);
 
-nar_object_t nar_new_record(
+nar_object_t nar_make_record(
         nar_runtime_t rt, nar_size_t size, const nar_string_t *keys, const nar_object_t *values);
 
-nar_object_t nar_new_record_field(
+nar_object_t nar_make_record_field(
         nar_runtime_t rt, nar_object_t record, nar_cstring_t key, nar_object_t value);
 
-nar_object_t nar_new_record_field_obj(
+nar_object_t nar_make_record_field_obj(
         nar_runtime_t rt, nar_object_t record, nar_object_t key, nar_object_t value);
 
-nar_object_t nar_new_record_raw(nar_runtime_t rt, size_t num_fields, const nar_object_t *stack);
+nar_object_t nar_make_record_raw(nar_runtime_t rt, size_t num_fields, const nar_object_t *stack);
 
 nar_record_t nar_to_record(nar_runtime_t rt, nar_object_t obj);
 
@@ -95,42 +97,46 @@ nar_object_t nar_to_record_field(nar_runtime_t rt, nar_object_t obj, nar_cstring
 
 nar_record_item_t nar_to_record_item(nar_runtime_t rt, nar_object_t obj);
 
-nar_object_t nar_new_list_cons(nar_runtime_t rt, nar_object_t head, nar_object_t tail);
+nar_object_t nar_make_list_cons(nar_runtime_t rt, nar_object_t head, nar_object_t tail);
 
-nar_object_t nar_new_list(nar_runtime_t rt, nar_size_t size, const nar_object_t *items);
+nar_object_t nar_make_list(nar_runtime_t rt, nar_size_t size, const nar_object_t *items);
 
 nar_list_t nar_to_list(nar_runtime_t rt, nar_object_t obj);
 
 nar_list_item_t nar_to_list_item(nar_runtime_t rt, nar_object_t obj);
 
-nar_object_t nar_new_tuple(nar_runtime_t rt, nar_size_t size, const nar_object_t *items);
+nar_object_t nar_make_tuple(nar_runtime_t rt, nar_size_t size, const nar_object_t *items);
 
 nar_tuple_t nar_to_tuple(nar_runtime_t rt, nar_object_t obj);
 
 nar_tuple_item_t nar_to_tuple_item(nar_runtime_t rt, nar_object_t obj);
 
-nar_object_t nar_new_option(
+nar_object_t nar_make_option(
         nar_runtime_t rt, nar_cstring_t name, nar_size_t size, const nar_object_t *items);
 
 nar_option_t nar_to_option(nar_runtime_t rt, nar_object_t obj);
 
 nar_option_item_t nar_to_option_item(nar_runtime_t rt, nar_object_t obj);
 
-nar_object_t nar_new_bool(__attribute__((unused)) nar_runtime_t rt, nar_bool_t value);
+nar_object_t nar_make_bool(__attribute__((unused)) nar_runtime_t rt, nar_bool_t value);
 
 nar_bool_t nar_to_bool(nar_runtime_t rt, nar_object_t obj);
 
-nar_object_t nar_new_func(nar_runtime_t rt, nar_cptr_t fn, nar_size_t arity);
+nar_object_t nar_make_func(nar_runtime_t rt, nar_cptr_t fn, nar_size_t arity);
 
 nar_func_t nar_to_func(nar_runtime_t rt, nar_object_t obj);
 
-nar_object_t nar_new_native(nar_runtime_t rt, nar_cptr_t ptr, nar_cmp_native_fn_t cmp);
+nar_object_t nar_make_native(nar_runtime_t rt, nar_cptr_t ptr, nar_cmp_native_fn_t cmp);
 
 nar_native_t nar_to_native(nar_runtime_t rt, nar_object_t obj);
 
-nar_object_t nar_new_closure(
+nar_object_t nar_make_closure(
         nar_runtime_t rt, size_t fn_index, size_t num_args, const nar_object_t *args);
 
 nar_closure_t nar_to_closure(nar_runtime_t rt, nar_object_t obj);
+
+void *nar_new_serialized_object(nar_runtime_t rt, nar_object_t obj);
+
+nar_object_t nar_deserialize_object(nar_runtime_t rt, void *obj);
 
 #endif //NAR_RUNTIME_H

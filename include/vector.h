@@ -142,4 +142,12 @@ static void vector_clear(vector_t *v) {
     v->size = 0;
 }
 
+static void vector_remove_fast_loosing_order(vector_t *v, size_t index) {
+    nar_assert(index < v->size);
+    if (index < v->size - 1) {
+        memcpy((char *) v->data + index * v->item_size, (char *) v->data + (v->size - 1) * v->item_size, v->item_size);
+    }
+    v->size--;
+}
+
 #endif //NAR_RUNTIME_VECTOR_H

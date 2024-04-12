@@ -45,11 +45,10 @@ add_library(nar-runtime-c STATIC
 add_executable(nare main.c)
 
 add_compile_definitions(CVECTOR_LOGARITHMIC_GROWTH)
-add_compile_definitions(NAR_UNSAFE)
+#add_compile_definitions(NAR_UNSAFE)
 
 target_link_libraries(nar-runtime)
 target_link_libraries(nar-runtime-c)
-
 target_link_libraries(nare nar-runtime-c)
 
 file(COPY include DESTINATION ${USER_HOME}/.nar)

@@ -14,6 +14,8 @@ typedef struct {
 
     void *(*frame_alloc)(nar_runtime_t rt, nar_size_t size);
 
+    void (*frame_free)(nar_runtime_t rt);
+
     // Runtime API
 
     void (*set_metadata)(nar_runtime_t rt, nar_cstring_t key, nar_cptr_t value);
@@ -46,37 +48,39 @@ typedef struct {
 
     nar_bool_t (*object_is_valid)(nar_runtime_t rt, nar_object_t obj);
 
-    nar_object_t (*new_unit)(nar_runtime_t rt);
+    nar_bool_t (*index_is_valid)(nar_runtime_t rt, nar_object_t obj);
+
+    nar_object_t (*make_unit)(nar_runtime_t rt);
 
     void (*to_unit)(nar_runtime_t rt, nar_object_t obj);
 
-    nar_object_t (*new_char)(nar_runtime_t rt, nar_char_t value);
+    nar_object_t (*make_char)(nar_runtime_t rt, nar_char_t value);
 
     nar_char_t (*to_char)(nar_runtime_t rt, nar_object_t obj);
 
-    nar_object_t (*new_int)(nar_runtime_t rt, nar_int_t value);
+    nar_object_t (*make_int)(nar_runtime_t rt, nar_int_t value);
 
     nar_int_t (*to_int)(nar_runtime_t rt, nar_object_t obj);
 
-    nar_object_t (*new_float)(nar_runtime_t rt, nar_float_t value);
+    nar_object_t (*make_float)(nar_runtime_t rt, nar_float_t value);
 
     nar_float_t (*to_float)(nar_runtime_t rt, nar_object_t obj);
 
-    nar_object_t (*new_string)(nar_runtime_t rt, nar_cstring_t value);
+    nar_object_t (*make_string)(nar_runtime_t rt, nar_cstring_t value);
 
     nar_cstring_t (*to_string)(nar_runtime_t rt, nar_object_t obj);
 
-    nar_object_t (*new_record)(
+    nar_object_t (*make_record)(
             nar_runtime_t rt, nar_size_t size, const nar_string_t *keys,
             const nar_object_t *values);
 
-    nar_object_t (*new_record_field)(
+    nar_object_t (*make_record_field)(
             nar_runtime_t rt, nar_object_t record, nar_cstring_t key, nar_object_t value);
 
-    nar_object_t (*new_record_field_obj)(
+    nar_object_t (*make_record_field_obj)(
             nar_runtime_t rt, nar_object_t record, nar_object_t key, nar_object_t value);
 
-    nar_object_t (*new_record_raw)(nar_runtime_t rt, size_t size, const nar_object_t *stack);
+    nar_object_t (*make_record_raw)(nar_runtime_t rt, size_t size, const nar_object_t *stack);
 
     nar_record_t (*to_record)(nar_runtime_t rt, nar_object_t obj);
 
@@ -84,43 +88,47 @@ typedef struct {
 
     nar_record_item_t (*to_record_item)(nar_runtime_t rt, nar_object_t obj);
 
-    nar_object_t (*new_list_cons)(nar_runtime_t rt, nar_object_t head, nar_object_t tail);
+    nar_object_t (*make_list_cons)(nar_runtime_t rt, nar_object_t head, nar_object_t tail);
 
-    nar_object_t (*new_list)(nar_runtime_t rt, nar_size_t size, const nar_object_t *items);
+    nar_object_t (*make_list)(nar_runtime_t rt, nar_size_t size, const nar_object_t *items);
 
     nar_list_t (*to_list)(nar_runtime_t rt, nar_object_t obj);
 
     nar_list_item_t (*to_list_item)(nar_runtime_t rt, nar_object_t obj);
 
-    nar_object_t (*new_tuple)(nar_runtime_t rt, nar_size_t size, const nar_object_t *items);
+    nar_object_t (*make_tuple)(nar_runtime_t rt, nar_size_t size, const nar_object_t *items);
 
     nar_tuple_t (*to_tuple)(nar_runtime_t rt, nar_object_t obj);
 
     nar_tuple_item_t (*to_tuple_item)(nar_runtime_t rt, nar_object_t obj);
 
-    nar_object_t (*new_option)(
+    nar_object_t (*make_option)(
             nar_runtime_t rt, nar_cstring_t name, nar_size_t size, const nar_object_t *items);
 
     nar_option_t (*to_option)(nar_runtime_t rt, nar_object_t obj);
 
     nar_option_item_t (*to_option_item)(nar_runtime_t rt, nar_object_t obj);
 
-    nar_object_t (*new_bool)(nar_runtime_t rt, nar_bool_t value);
+    nar_object_t (*make_bool)(nar_runtime_t rt, nar_bool_t value);
 
     nar_bool_t (*to_bool)(nar_runtime_t rt, nar_object_t obj);
 
-    nar_object_t (*new_func)(nar_runtime_t rt, nar_ptr_t fn, nar_size_t arity);
+    nar_object_t (*make_func)(nar_runtime_t rt, nar_ptr_t fn, nar_size_t arity);
 
     nar_func_t (*to_func)(nar_runtime_t rt, nar_object_t obj);
 
-    nar_object_t (*new_native)(nar_runtime_t rt, nar_ptr_t ptr, nar_cmp_native_fn_t cmp);
+    nar_object_t (*make_native)(nar_runtime_t rt, nar_ptr_t ptr, nar_cmp_native_fn_t cmp);
 
     nar_native_t (*to_native)(nar_runtime_t rt, nar_object_t obj);
 
-    nar_object_t (*new_closure)(
+    nar_object_t (*make_closure)(
             nar_runtime_t rt, size_t fn_index, size_t num_args, const nar_object_t *args);
 
     nar_closure_t (*to_closure)(nar_runtime_t rt, nar_object_t obj);
+
+    void *(*new_serialized_object)(nar_runtime_t rt, nar_object_t obj);
+
+    nar_object_t (*deserialize_object)(nar_runtime_t rt, void *obj);
 } nar_t;
 
 typedef nar_int_t (*init_fn_t)(const nar_t *, nar_runtime_t);

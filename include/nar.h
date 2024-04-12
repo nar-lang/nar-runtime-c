@@ -113,6 +113,8 @@ typedef enum {
 
 typedef void *nar_bytecode_t;
 
-static const nar_object_t INVALID_OBJECT = 0;
+static const nar_object_t NAR_INVALID_OBJECT = 0;
+
+static const nar_object_t NAR_INVALID_INDEX = 0x0080000000000000;
 
 #endif // NAR_H

@@ -66,7 +66,7 @@ nar_bool_t match( // NOLINT(*-no-recursion)
                 nar_fail(rt, "cons pattern should have exactly two pat_values patterns");
                 return false;
             }
-            if (!index_is_valid(obj)) {
+            if (!nar_index_is_valid(rt, obj)) {
                 return false;
             }
             nar_list_item_t list = nar_to_list_item(rt, obj);
@@ -171,7 +171,7 @@ nar_object_t execute(runtime_t *rt, const func_t *fn, vector_t *stack) { // NOLI
     vector_t *pattern_stack = rvector_new(sizeof(nar_object_t), 0);
     vector_push(rt->call_stack, 1, &fn->name);
     size_t num_locals = 0;
-    nar_object_t result = INVALID_OBJECT;
+    nar_object_t result = NAR_INVALID_OBJECT;
 
     for (size_t index = 0; index < fn->num_ops; index++) {
         reg_a_t a;
@@ -207,7 +207,7 @@ nar_object_t execute(runtime_t *rt, const func_t *fn, vector_t *stack) { // NOLI
 
                     vector_push(stack, 1, &const_value);
                 } else {
-                    nar_object_t closure = nar_new_closure(rt, a, 0, NULL);
+                    nar_object_t closure = nar_make_closure(rt, a, 0, NULL);
                     vector_push(stack, 1, &closure);
                 }
                 break;
@@ -216,23 +216,23 @@ nar_object_t execute(runtime_t *rt, const func_t *fn, vector_t *stack) { // NOLI
                 nar_object_t value;
                 switch ((const_kind_t) c) {
                     case CONST_KIND_UNIT: {
-                        value = nar_new_unit(rt);
+                        value = nar_make_unit(rt);
                         break;
                     }
                     case CONST_KIND_CHAR: {
-                        value = nar_new_char(rt, (nar_char_t) a);
+                        value = nar_make_char(rt, (nar_char_t) a);
                         break;
                     }
                     case CONST_KIND_INT: {
-                        value = nar_new_int(rt, get_hashed_const(rt, a)->int_value);
+                        value = nar_make_int(rt, get_hashed_const(rt, a)->int_value);
                         break;
                     }
                     case CONST_KIND_FLOAT: {
-                        value = nar_new_float(rt, get_hashed_const(rt, a)->float_value);
+                        value = nar_make_float(rt, get_hashed_const(rt, a)->float_value);
                         break;
                     }
                     case CONST_KIND_STRING: {
-                        value = nar_new_string(rt, get_string(rt, a));
+                        value = nar_make_string(rt, get_string(rt, a));
                         break;
                     }
                     default: {
@@ -272,7 +272,7 @@ nar_object_t execute(runtime_t *rt, const func_t *fn, vector_t *stack) { // NOLI
                 if (f->num_args == num_params) {
                     apply_result = execute(rt, f, args);
                 } else {
-                    apply_result = nar_new_closure(rt, afn.fn_index, vector_size(args),
+                    apply_result = nar_make_closure(rt, afn.fn_index, vector_size(args),
                             vector_data(args));
                 }
                 vector_free(args);
@@ -290,7 +290,7 @@ nar_object_t execute(runtime_t *rt, const func_t *fn, vector_t *stack) { // NOLI
                     goto cleanup;
                 }
 
-                nar_object_t call_result = INVALID_OBJECT;
+                nar_object_t call_result = NAR_INVALID_OBJECT;
                 size_t n = vector_size(stack);
                 nar_object_t *args = nar_alloc(n * sizeof(nar_object_t));
                 vector_pop(stack, n, args);
@@ -362,7 +362,7 @@ nar_object_t execute(runtime_t *rt, const func_t *fn, vector_t *stack) { // NOLI
                     case OBJECT_KIND_LIST: {
                         nar_object_t *items = nar_alloc(a * sizeof(nar_object_t));
                         vector_pop(stack, a, items);
-                        nar_object_t list = nar_new_list(rt, a, items);
+                        nar_object_t list = nar_make_list(rt, a, items);
                         nar_free(items);
                         vector_push(stack, 1, &list);
                         break;
@@ -370,7 +370,7 @@ nar_object_t execute(runtime_t *rt, const func_t *fn, vector_t *stack) { // NOLI
                     case OBJECT_KIND_TUPLE: {
                         nar_object_t *items = nar_alloc(a * sizeof(nar_object_t));
                         vector_pop(stack, a, items);
-                        nar_object_t tuple = nar_new_tuple(rt, a, items);
+                        nar_object_t tuple = nar_make_tuple(rt, a, items);
                         nar_free(items);
                         vector_push(stack, 1, &tuple);
                         break;
@@ -378,7 +378,7 @@ nar_object_t execute(runtime_t *rt, const func_t *fn, vector_t *stack) { // NOLI
                     case OBJECT_KIND_RECORD: {
                         nar_object_t *items = nar_alloc(a * 2 * sizeof(nar_object_t));
                         vector_pop(stack, a * 2, items);
-                        nar_object_t record = nar_new_record_raw(rt, a, items);
+                        nar_object_t record = nar_make_record_raw(rt, a, items);
                         nar_free(items);
                         vector_push(stack, 1, &record);
                         break;
@@ -389,7 +389,7 @@ nar_object_t execute(runtime_t *rt, const func_t *fn, vector_t *stack) { // NOLI
                         nar_cstring_t name = nar_to_string(rt, name_obj);
                         nar_object_t *values = nar_alloc(a * sizeof(nar_object_t));
                         vector_pop(stack, a, values);
-                        nar_object_t option = nar_new_option(rt, name, a, values);
+                        nar_object_t option = nar_make_option(rt, name, a, values);
                         nar_free(values);
                         vector_push(stack, 1, &option);
                         break;
@@ -450,7 +450,7 @@ nar_object_t execute(runtime_t *rt, const func_t *fn, vector_t *stack) { // NOLI
 
                 items = nar_alloc(num_items * sizeof(nar_object_t));
                 vector_pop(pattern_stack, num_items, items);
-                nar_object_t pattern = nar_new_pattern(rt, kind, name, num_items, items);
+                nar_object_t pattern = nar_make_pattern(rt, kind, name, num_items, items);
                 nar_free(items);
                 if (!nar_object_is_valid(rt, pattern)) {
                     nar_fail(rt, "loaded bytecode is corrupted (failed to create pattern)");
@@ -476,7 +476,7 @@ nar_object_t execute(runtime_t *rt, const func_t *fn, vector_t *stack) { // NOLI
                 nar_object_t value, record;
                 vector_pop(stack, 1, &value);
                 vector_pop(stack, 1, &record);
-                nar_object_t updated = nar_new_record_field(rt, record, key, value);
+                nar_object_t updated = nar_make_record_field(rt, record, key, value);
                 vector_push(stack, 1, &updated);
                 break;
             }

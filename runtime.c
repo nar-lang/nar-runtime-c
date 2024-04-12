@@ -74,6 +74,7 @@ nar_runtime_t nar_runtime_new(nar_bytecode_t btc) {
     rt->package_pointers->realloc = &nar_realloc;
     rt->package_pointers->free = &nar_free;
     rt->package_pointers->frame_alloc = &nar_frame_alloc;
+    rt->package_pointers->frame_free = &nar_frame_free;
     rt->package_pointers->set_metadata = &nar_set_metadata;
     rt->package_pointers->get_metadata = &nar_get_metadata;
     rt->package_pointers->register_def = &nar_register_def;
@@ -85,41 +86,44 @@ nar_runtime_t nar_runtime_new(nar_bytecode_t btc) {
     rt->package_pointers->get_last_error = &nar_get_last_error;
     rt->package_pointers->object_get_kind = &nar_object_get_kind;
     rt->package_pointers->object_is_valid = &nar_object_is_valid;
-    rt->package_pointers->new_unit = &nar_new_unit;
+    rt->package_pointers->index_is_valid = &nar_index_is_valid;
+    rt->package_pointers->make_unit = &nar_make_unit;
     rt->package_pointers->to_unit = &nar_to_unit;
-    rt->package_pointers->new_char = &nar_new_char;
+    rt->package_pointers->make_char = &nar_make_char;
     rt->package_pointers->to_char = &nar_to_char;
-    rt->package_pointers->new_int = &nar_new_int;
+    rt->package_pointers->make_int = &nar_make_int;
     rt->package_pointers->to_int = &nar_to_int;
-    rt->package_pointers->new_float = &nar_new_float;
+    rt->package_pointers->make_float = &nar_make_float;
     rt->package_pointers->to_float = &nar_to_float;
-    rt->package_pointers->new_string = &nar_new_string;
+    rt->package_pointers->make_string = &nar_make_string;
     rt->package_pointers->to_string = &nar_to_string;
-    rt->package_pointers->new_record = &nar_new_record;
-    rt->package_pointers->new_record_field = &nar_new_record_field;
-    rt->package_pointers->new_record_field_obj = &nar_new_record_field_obj;
-    rt->package_pointers->new_record_raw = &nar_new_record_raw;
+    rt->package_pointers->make_record = &nar_make_record;
+    rt->package_pointers->make_record_field = &nar_make_record_field;
+    rt->package_pointers->make_record_field_obj = &nar_make_record_field_obj;
+    rt->package_pointers->make_record_raw = &nar_make_record_raw;
     rt->package_pointers->to_record = &nar_to_record;
     rt->package_pointers->to_record_field = &nar_to_record_field;
     rt->package_pointers->to_record_item = &nar_to_record_item;
-    rt->package_pointers->new_list_cons = &nar_new_list_cons;
-    rt->package_pointers->new_list = &nar_new_list;
+    rt->package_pointers->make_list_cons = &nar_make_list_cons;
+    rt->package_pointers->make_list = &nar_make_list;
     rt->package_pointers->to_list = &nar_to_list;
     rt->package_pointers->to_list_item = &nar_to_list_item;
-    rt->package_pointers->new_tuple = &nar_new_tuple;
+    rt->package_pointers->make_tuple = &nar_make_tuple;
     rt->package_pointers->to_tuple = &nar_to_tuple;
     rt->package_pointers->to_tuple_item = &nar_to_tuple_item;
-    rt->package_pointers->new_option = &nar_new_option;
+    rt->package_pointers->make_option = &nar_make_option;
     rt->package_pointers->to_option = &nar_to_option;
     rt->package_pointers->to_option_item = &nar_to_option_item;
-    rt->package_pointers->new_bool = &nar_new_bool;
+    rt->package_pointers->make_bool = &nar_make_bool;
     rt->package_pointers->to_bool = &nar_to_bool;
-    rt->package_pointers->new_func = &nar_new_func;
+    rt->package_pointers->make_func = &nar_make_func;
     rt->package_pointers->to_func = &nar_to_func;
-    rt->package_pointers->new_native = &nar_new_native;
+    rt->package_pointers->make_native = &nar_make_native;
     rt->package_pointers->to_native = &nar_to_native;
-    rt->package_pointers->new_closure = &nar_new_closure;
+    rt->package_pointers->make_closure = &nar_make_closure;
     rt->package_pointers->to_closure = &nar_to_closure;
+    rt->package_pointers->new_serialized_object = &nar_new_serialized_object;
+    rt->package_pointers->deserialize_object = &nar_deserialize_object;
 
     rt->program = btc;
     rt->native_defs = hashmap_new(sizeof(native_def_item_t), 128, 0, 0,
@@ -225,15 +229,15 @@ nar_object_t nar_apply(
     runtime_t *r = (runtime_t *) rt;
     if (vector_size(r->call_stack) > 0) {
         nar_fail(rt, "runtime supports only singe threaded execution");
-        return INVALID_OBJECT;
+        return NAR_INVALID_OBJECT;
     }
     const exports_item_t *export_item = hashmap_get(r->program->exports,
             &(exports_item_t) {.name = name});
     if (export_item == NULL) {
         nar_fail(rt, "definition not exported in bytecode");
-        return INVALID_OBJECT;
+        return NAR_INVALID_OBJECT;
     }
-    nar_object_t afn = nar_new_closure(rt, export_item->index, 0, NULL);
+    nar_object_t afn = nar_make_closure(rt, export_item->index, 0, NULL);
     return nar_apply_func(rt, afn, num_args, args);
 }
 
@@ -261,7 +265,7 @@ nar_object_t nar_apply_func( // NOLINT(*-no-recursion)
         }
         nar_free(rest);
     } else {
-        result = nar_new_closure(rt, afn.fn_index, vector_size(all_args), vector_data(all_args));
+        result = nar_make_closure(rt, afn.fn_index, vector_size(all_args), vector_data(all_args));
     }
     vector_free(all_args);
     return result;
@@ -309,7 +313,11 @@ nar_cstring_t nar_get_last_error(nar_runtime_t rt) {
 
 void nar_set_metadata(nar_runtime_t rt, nar_cstring_t key, nar_cptr_t value) {
     runtime_t *r = (runtime_t *) rt;
-    hashmap_set(r->metadata, &(metadata_item_t) {.name = string_dup(key), .value = value});
+    metadata_item_t *old = hashmap_set(
+            r->metadata, &(metadata_item_t) {.name = string_dup(key), .value = value});
+    if (old != NULL) {
+        metadata_item_free(old);
+    }
 }
 
 nar_cptr_t nar_get_metadata(nar_runtime_t rt, nar_cstring_t key) {

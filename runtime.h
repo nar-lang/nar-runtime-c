@@ -6,7 +6,7 @@
 #include "bytecode.h"
 #include "include/vector.h"
 
-#define new_object(kind, index)  (((nar_object_t)kind << 56) | (nar_object_t)index)
+#define build_object(kind, index)  (((nar_object_t)kind << 56) | (nar_object_t)index)
 #define OPTION_NAME_TRUE "Nar.Base.Basics.Bool#True"
 #define OPTION_NAME_FALSE "Nar.Base.Basics.Bool#False"
 
@@ -57,7 +57,7 @@ typedef struct {
 
 void frame_free(runtime_t *rt, bool create_defaults);
 nar_object_t execute(runtime_t *rt, const func_t *fn, vector_t *stack);
-nar_object_t nar_new_pattern(
+nar_object_t nar_make_pattern(
         nar_runtime_t rt, pattern_kind_t kind,
         nar_cstring_t name, size_t num_items, nar_object_t *items);
 nar_pattern_t nar_to_pattern(nar_runtime_t rt, nar_object_t pattern);
@@ -66,11 +66,5 @@ nar_string_t string_dup(nar_cstring_t str);
 void nar_register_def_dynamic(
         nar_runtime_t rt, nar_cstring_t module_name, nar_cstring_t def_name,
         nar_cstring_t func_name, nar_size_t arity);
-
-#define index_is_valid(obj) ((obj!=0) && ((obj & INVALID_INDEX)==0))
-
-#define INVALID_INDEX 0x0080000000000000
-
-size_t allocated_memory;
 
 #endif //NAR_RUNTIME_RUNTIME_H
