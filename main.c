@@ -9,11 +9,11 @@ nar_bytecode_t btc = NULL;
 void nar_print_memory();
 
 
-void clean_and_exit(nar_runtime_t rt, int code) {
+void clean_and_exit(nar_runtime_t rt, nar_int_t code) {
     nar_runtime_free(rt);
     nar_bytecode_free(btc);
     nar_print_memory();
-    exit(code);
+    exit((int)code);
 }
 
 int main(int argc, char *argv[]) {
@@ -52,9 +52,9 @@ int main(int argc, char *argv[]) {
 
     btc = nar_bytecode_new(file_size, binary);
     nar_free(binary);
-    if (btc == 0 || nar_get_last_error(NULL) != NULL) {
+    if (btc == 0 || nar_get_error(NULL) != NULL) {
         printf("Error: could not load bytecode from file %s (%s)\n", argv[1],
-                nar_get_last_error(NULL));
+                nar_get_error(NULL));
         errno = -4;
         goto cleanup;
     }
@@ -75,8 +75,8 @@ int main(int argc, char *argv[]) {
     rt = nar_runtime_new(btc);
 
     if (!nar_register_libs(rt, libs_path)) {
-        nar_cstring_t err = nar_get_last_error(rt);
-        printf("Error: could not create runtime (error message: %s)\n", err);
+        nar_cstring_t err = nar_get_error(rt);
+        printf("Error: could not create runtime\n%s\n", err);
         errno = -5;
         goto cleanup;
     }
@@ -84,9 +84,9 @@ int main(int argc, char *argv[]) {
     nar_cstring_t entry_point = nar_bytecode_get_entry(btc);
 
     nar_object_t result_obj = nar_apply(rt, entry_point, 0, NULL);
-    if (!nar_object_is_valid(rt, result_obj)) {
+    if (nar_get_error(rt) != NULL) {
         printf("Error: could not execute_program entry point %s (error message: %s)\n",
-                entry_point, nar_get_last_error(rt));
+                entry_point, nar_get_error(rt));
         errno = -6;
         goto cleanup;
     }
@@ -94,10 +94,16 @@ int main(int argc, char *argv[]) {
     typedef void (*execute_fn_t)(
             nar_runtime_t rt,
             nar_object_t program,
-            void (*exit)(nar_runtime_t rt, int code));
+            void (*exit)(nar_runtime_t rt, nar_int_t code));
     execute_fn_t execute = nar_get_metadata(rt, "Nar.Program:execute");
     if (execute != NULL) {
         execute(rt, result_obj, clean_and_exit);
+        if (nar_get_error(rt) != NULL) {
+            printf("Error: could not execute_program program (error message: %s)\n",
+                    nar_get_error(rt));
+            errno = -7;
+            goto cleanup;
+        }
     }
 
     cleanup:

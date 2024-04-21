@@ -83,7 +83,7 @@ nar_runtime_t nar_runtime_new(nar_bytecode_t btc) {
     rt->package_pointers->apply_func = &nar_apply_func;
     rt->package_pointers->print = &nar_print;
     rt->package_pointers->fail = &nar_fail;
-    rt->package_pointers->get_last_error = &nar_get_last_error;
+    rt->package_pointers->get_last_error = &nar_get_error;
     rt->package_pointers->object_get_kind = &nar_object_get_kind;
     rt->package_pointers->object_is_valid = &nar_object_is_valid;
     rt->package_pointers->index_is_valid = &nar_index_is_valid;
@@ -284,37 +284,61 @@ void nar_fail(nar_runtime_t rt, nar_cstring_t message) {
         return;
     }
     runtime_t *r = (runtime_t *) rt;
+
+    size_t len = strlen(message) + 1 + 1;
+    vector_t *stack = ((runtime_t *) r)->call_stack;
+    for (size_t i = vector_size(stack); i > 0; --i) {
+        len += strlen(*(nar_string_t *) vector_at(stack, i - 1)) + 1;
+    }
+
+    nar_string_t msg_with_stack = nar_alloc(len);
+    strcat(msg_with_stack, message);
+    strcat(msg_with_stack, "\n");
+    for (size_t i = vector_size(stack); i > 0; --i) {
+        strcat(msg_with_stack, *(nar_string_t *) vector_at(stack, i - 1));
+        strcat(msg_with_stack, "\n");
+    }
+
     if (r->last_error != NULL) {
-        nar_string_t combined = nar_alloc(strlen(r->last_error) + strlen(message) + 2);
+        nar_string_t combined = nar_alloc(strlen(r->last_error) + strlen(msg_with_stack) + 21);
         strcpy(combined, r->last_error);
-        strcat(combined, "\n");
+        strcat(combined, "\n----------------\n");
         strcat(combined, message);
         nar_free(r->last_error);
         r->last_error = combined;
     } else {
-        r->last_error = string_dup(message);
+        r->last_error = string_dup(msg_with_stack);
     }
-#ifndef NAR_UNSAFE
-    printf("%s\n", message);
-    vector_t *stack = ((runtime_t *) r)->call_stack;
-    for (size_t i = vector_size(stack); i > 0; --i) {
-        printf("%s\n", *(nar_string_t *) vector_at(stack, i - 1));
-    }
-    nar_assert(false);
-#endif
+    nar_free(msg_with_stack);
 }
 
-nar_cstring_t nar_get_last_error(nar_runtime_t rt) {
+nar_cstring_t nar_get_error(nar_runtime_t rt) {
     if (rt == NULL) {
         return general_last_error;
     }
-    return ((runtime_t *) rt)->last_error;
+    nar_cstring_t err = ((runtime_t *) rt)->last_error;
+    if (err) {
+        return err;
+    }
+    return general_last_error;
+}
+
+void nar_clear_error(nar_runtime_t rt) {
+    free(general_last_error);
+    general_last_error = NULL;
+
+    runtime_t *r = (runtime_t *) rt;
+    if (r->last_error != NULL) {
+        nar_free(r->last_error);
+        r->last_error = NULL;
+    }
 }
 
 void nar_set_metadata(nar_runtime_t rt, nar_cstring_t key, nar_cptr_t value) {
     runtime_t *r = (runtime_t *) rt;
-    metadata_item_t *old = hashmap_set(
-            r->metadata, &(metadata_item_t) {.name = string_dup(key), .value = value});
+    metadata_item_t *old = (metadata_item_t *) hashmap_set(
+            r->metadata,
+            &(metadata_item_t) {.name = (nar_string_t) string_dup(key), .value = value});
     if (old != NULL) {
         metadata_item_free(old);
     }

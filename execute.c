@@ -153,17 +153,26 @@ nar_bool_t match( // NOLINT(*-no-recursion)
 }
 
 nar_cstring_t get_string(runtime_t *rt, index_t index) {
-    nar_assert(index < rt->program->num_strings);
+    if(index >= rt->program->num_strings) {
+        nar_fail(rt, "loaded bytecode is corrupted (invalid string index)");
+        return NULL;
+    }
     return rt->program->strings[index];
 }
 
 const func_t *get_function(runtime_t *rt, index_t index) {
-    nar_assert(index < rt->program->num_functions);
+    if (index >= rt->program->num_functions) {
+        nar_fail(rt, "loaded bytecode is corrupted (invalid function index)");
+        return NULL;
+    }
     return &rt->program->functions[index];
 }
 
 const hashed_const_t *get_hashed_const(runtime_t *rt, index_t index) {
-    nar_assert(index < rt->program->num_constants);
+    if (index >= rt->program->num_constants) {
+        nar_fail(rt, "loaded bytecode is corrupted (invalid constant index)");
+        return NULL;
+    }
     return &rt->program->constants[index];
 }
 
@@ -174,6 +183,10 @@ nar_object_t execute(runtime_t *rt, const func_t *fn, vector_t *stack) { // NOLI
     nar_object_t result = NAR_INVALID_OBJECT;
 
     for (size_t index = 0; index < fn->num_ops; index++) {
+        if (rt->last_error != NULL) {
+            return NAR_INVALID_OBJECT;
+        }
+
         reg_a_t a;
         reg_b_t b;
         reg_c_t c;
@@ -285,7 +298,8 @@ nar_object_t execute(runtime_t *rt, const func_t *fn, vector_t *stack) { // NOLI
                         &(native_def_item_t) {.name = name});
                 if (def == NULL) {
                     char err[1024];
-                    snprintf(err, 1024, "definition `%s` is not registered", name);
+                    snprintf(err, 1024,
+                            "native implementation for definition `%s` is not registered", name);
                     nar_fail(rt, err);
                     goto cleanup;
                 }

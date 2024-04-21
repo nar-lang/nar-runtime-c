@@ -50,7 +50,9 @@ void nar_print(__attribute__((unused)) nar_runtime_t rt, nar_cstring_t message);
 
 void nar_fail(nar_runtime_t rt, nar_cstring_t message);
 
-nar_cstring_t nar_get_last_error(nar_runtime_t rt);
+nar_cstring_t nar_get_error(nar_runtime_t rt);
+
+void nar_clear_error(nar_runtime_t rt);
 
 // Object API
 

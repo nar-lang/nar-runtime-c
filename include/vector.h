@@ -4,24 +4,27 @@
 #include <stddef.h>
 #include <string.h>
 #include "nar.h"
+#include "nar-runtime.h"
 
-typedef nar_ptr_t (*realloc_t)(nar_ptr_t mem, nar_size_t size);
-typedef void (*free_t)(nar_ptr_t mem);
+typedef nar_ptr_t (*realloc_fn_t)(nar_ptr_t mem, nar_size_t size);
+typedef void (*free_fn_t)(nar_ptr_t mem);
+typedef void (*fail_fn_t)(nar_runtime_t rt, nar_cstring_t msg);
 
 #define nvector_new(item_size, capacity, nar) \
-    vector_new(item_size, capacity, nar->realloc, nar->free)
+    vector_new(item_size, capacity, nar->realloc, nar->free, nar->fail)
 
 #define rvector_new(item_size, capacity) \
-    vector_new(item_size, capacity, (realloc_t)nar_realloc, (free_t)nar_free)
-
+    vector_new(item_size, capacity, \
+    (realloc_fn_t)nar_realloc, (free_fn_t)nar_free, (fail_fn_t)nar_fail)
 
 typedef struct {
     void *data;
     size_t size;
     size_t capacity;
     size_t item_size;
-    realloc_t realloc;
-    free_t free;
+    realloc_fn_t realloc;
+    free_fn_t free;
+    fail_fn_t fail;
 } vector_t;
 
 static void __ensure_capacity(vector_t *v, size_t new_len) {
@@ -51,7 +54,8 @@ static void __ensure_capacity(vector_t *v, size_t new_len) {
     }
 }
 
-static vector_t *vector_new(size_t item_size, size_t capacity, realloc_t realloc, free_t free) {
+static vector_t *vector_new(
+        size_t item_size, size_t capacity, realloc_fn_t realloc, free_fn_t free, fail_fn_t fail) {
     vector_t *v = realloc(NULL, sizeof(vector_t));
     v->data = NULL;
     v->size = 0;
@@ -59,6 +63,7 @@ static vector_t *vector_new(size_t item_size, size_t capacity, realloc_t realloc
     v->item_size = item_size;
     v->realloc = realloc;
     v->free = free;
+    v->fail = fail;
     __ensure_capacity(v, capacity);
     return v;
 }
@@ -84,32 +89,40 @@ static void vector_pop(vector_t *v, size_t n, void *items) {
     if (n == 0) {
         return;
     }
-    nar_assert(n <= v->size);
+
+    if (n > v->size) {
+        v->fail(NULL, "vector_pop: n >= v->size");
+        return;
+    }
+
     v->size -= n;
     if (items != NULL) {
         memcpy(items, (char *) v->data + v->size * v->item_size, n * v->item_size);
     }
-#ifndef NAR_UNSAFE
-    memset((char *) v->data + v->size * v->item_size, 0, n * v->item_size);
-#endif
 }
 
 static void vector_pop_vec(vector_t *v, size_t n, vector_t *items) {
     if (n == 0) {
         return;
     }
-    nar_assert(n <= v->size);
+
+    if (n > v->size) {
+        v->fail(NULL, "vector_pop_vec: n >= v->size");
+        return;
+    }
+
     v->size -= n;
     if (items != NULL) {
         vector_push(items, n, (char *) v->data + v->size * v->item_size);
     }
-#ifndef NAR_UNSAFE
-    memset((char *) v->data + v->size * v->item_size, 0, n * v->item_size);
-#endif
 }
 
 static void *vector_at(vector_t *v, size_t index) {
-    nar_assert(index < v->size);
+    if (index >= v->size) {
+        v->fail(NULL, "vector_at: index >= v->size");
+        return NULL;
+    }
+
     return (char *) v->data + index * v->item_size;
 }
 
@@ -136,16 +149,17 @@ static void vector_clear(vector_t *v) {
     if (v->size == 0) {
         return;
     }
-#ifndef NAR_UNSAFE
-    memset((char *) v->data, 0, v->size * v->item_size);
-#endif
     v->size = 0;
 }
 
 static void vector_remove_fast_loosing_order(vector_t *v, size_t index) {
-    nar_assert(index < v->size);
+    if (index >= v->size) {
+        v->fail(NULL, "vector_remove_fast_loosing_order: index >= v->size");
+        return;
+    }
     if (index < v->size - 1) {
-        memcpy((char *) v->data + index * v->item_size, (char *) v->data + (v->size - 1) * v->item_size, v->item_size);
+        memcpy((char *) v->data + index * v->item_size,
+                (char *) v->data + (v->size - 1) * v->item_size, v->item_size);
     }
     v->size--;
 }

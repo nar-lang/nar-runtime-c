@@ -1,4 +1,5 @@
 #include <string.h>
+#include <stdio.h>
 #include "include/nar.h"
 #include "runtime.h"
 #include "include/nar-runtime.h"
@@ -13,8 +14,56 @@ nar_object_t insert(nar_runtime_t rt, nar_object_kind_t kind, void *value) {
     return build_object(kind, index);
 }
 
+nar_cstring_t kind_to_string(nar_object_kind_t kind) {
+    switch (kind) {
+        case NAR_OBJECT_KIND_UNKNOWN:
+            return "unknown";
+        case NAR_OBJECT_KIND_UNIT:
+            return "unit";
+        case NAR_OBJECT_KIND_CHAR:
+            return "char";
+        case NAR_OBJECT_KIND_INT:
+            return "int";
+        case NAR_OBJECT_KIND_FLOAT:
+            return "float";
+        case NAR_OBJECT_KIND_STRING:
+            return "string";
+        case NAR_OBJECT_KIND_RECORD:
+            return "record";
+        case NAR_OBJECT_KIND_LIST:
+            return "list";
+        case NAR_OBJECT_KIND_TUPLE:
+            return "tuple";
+        case NAR_OBJECT_KIND_OPTION:
+            return "option";
+        case NAR_OBJECT_KIND_FUNCTION:
+            return "function";
+        case NAR_OBJECT_KIND_NATIVE:
+            return "native";
+        case NAR_OBJECT_KIND_CLOSURE:
+            return "closure";
+        case NAR_OBJECT_KIND_PATTERN:
+            return "pattern";
+        default:
+            return "invalid kind";
+    }
+}
+
+bool check_type(nar_runtime_t rt, nar_object_t obj, nar_object_kind_t kind) {
+    if (nar_object_get_kind(rt, obj) != kind) {
+        char buf[256];
+        sprintf(buf, "expected object kind %d, got %d", kind, nar_object_get_kind(rt, obj));
+        nar_fail(rt, buf);
+        return false;
+    }
+    return true;
+}
+
 void *find(nar_runtime_t rt, nar_object_kind_t kind, nar_object_t obj) {
-    nar_assert(nar_object_get_kind(rt, obj) == (kind));
+    if (!check_type(rt, obj, kind)) {
+        return NULL;
+    }
+
     vector_t *arena = ((runtime_t *) rt)->arenas[kind];
     size_t index = object_get_index(obj);
     return vector_at(arena, index);
@@ -53,7 +102,7 @@ nar_object_t nar_make_unit(__attribute__((unused)) nar_runtime_t rt) {
 }
 
 void nar_to_unit(nar_runtime_t rt, nar_object_t obj) {
-    nar_assert(nar_object_get_kind(rt, obj) == NAR_OBJECT_KIND_UNIT);
+    check_type(rt, obj, NAR_OBJECT_KIND_UNIT);
 }
 
 nar_object_t nar_make_char(nar_runtime_t rt, nar_char_t value) {
@@ -117,7 +166,10 @@ nar_object_t nar_make_record_field(
 
 nar_object_t nar_make_record_field_obj(
         nar_runtime_t rt, nar_object_t record, nar_object_t key, nar_object_t value) {
-    nar_assert(nar_object_get_kind(rt, key) == NAR_OBJECT_KIND_STRING);
+    if (!check_type(rt, record, NAR_OBJECT_KIND_RECORD)) {
+        return NAR_INVALID_OBJECT;
+    }
+
     return insert(rt, NAR_OBJECT_KIND_RECORD,
             &(nar_record_item_t) {.key=key, .value = value, .parent = record});
 }
@@ -132,7 +184,10 @@ nar_object_t nar_make_record_raw(nar_runtime_t rt, size_t num_fields, const nar_
 }
 
 nar_record_t nar_to_record(nar_runtime_t rt, nar_object_t obj) {
-    nar_assert(nar_object_get_kind(rt, obj) == NAR_OBJECT_KIND_RECORD);
+    if (!nar_index_is_valid(rt, obj)) {
+        return (nar_record_t) {0};
+    }
+
     hashmap_t *map = hashmap_new(sizeof(key_value_t), 0, 0, 0,
             &key_value_hash, &key_value_compare, NULL, NULL);
     while (nar_index_is_valid(rt, obj)) {
@@ -168,7 +223,10 @@ nar_record_t nar_to_record(nar_runtime_t rt, nar_object_t obj) {
 }
 
 nar_object_t nar_to_record_field(nar_runtime_t rt, nar_object_t obj, nar_cstring_t key) {
-    nar_assert(nar_object_get_kind(rt, obj) == NAR_OBJECT_KIND_RECORD);
+    if (!check_type(rt, obj, NAR_OBJECT_KIND_RECORD)) {
+        return NAR_INVALID_OBJECT;
+    }
+
     while (nar_index_is_valid(rt, obj)) {
         nar_record_item_t f = nar_to_record_item(rt, obj);
         nar_cstring_t it_key = nar_to_string(rt, f.key);
@@ -198,7 +256,10 @@ nar_object_t nar_make_list(nar_runtime_t rt, nar_size_t size, const nar_object_t
 }
 
 nar_list_t nar_to_list(nar_runtime_t rt, nar_object_t obj) {
-    nar_assert(nar_object_get_kind(rt, obj) == NAR_OBJECT_KIND_LIST);
+    if (!check_type(rt, obj, NAR_OBJECT_KIND_LIST)) {
+        return (nar_list_t) {0};
+    }
+
     vector_t *vec = rvector_new(sizeof(nar_object_t), 0);
 
     while (nar_index_is_valid(rt, obj)) {
@@ -238,7 +299,10 @@ nar_object_t nar_make_tuple(nar_runtime_t rt, nar_size_t size, const nar_object_
 }
 
 nar_tuple_t nar_to_tuple(nar_runtime_t rt, nar_object_t obj) {
-    nar_assert(nar_object_get_kind(rt, obj) == NAR_OBJECT_KIND_TUPLE);
+    if (!check_type(rt, obj, NAR_OBJECT_KIND_TUPLE)) {
+        return (nar_tuple_t) {0};
+    }
+
     vector_t *vec = rvector_new(sizeof(nar_object_t), 0);
 
     while (nar_index_is_valid(rt, obj)) {
@@ -300,7 +364,10 @@ nar_object_t nar_make_bool(__attribute__((unused)) nar_runtime_t rt, nar_bool_t 
 }
 
 nar_bool_t nar_to_bool(nar_runtime_t rt, nar_object_t obj) {
-    nar_assert(nar_object_get_kind(rt, obj) == NAR_OBJECT_KIND_OPTION);
+    if (!check_type(rt, obj, NAR_OBJECT_KIND_OPTION)) {
+        return 0;
+    }
+
     if (object_get_index(obj) == 0) {
         return nar_false;
     }
@@ -314,7 +381,7 @@ nar_bool_t nar_to_bool(nar_runtime_t rt, nar_object_t obj) {
     if (strcmp(opt.name, OPTION_NAME_FALSE) == 0) {
         return nar_false;
     }
-    nar_assert(!"expected boolean type");
+    nar_fail(rt, "expected Nar.Base.Basics.Bool option");
     return 0;
 }
 

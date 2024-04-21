@@ -8,13 +8,6 @@
 #error "IEEE 754 floating point support is required"
 #endif
 
-#ifdef NAR_UNSAFE
-#define nar_assert(expr)
-#else
-#include <assert.h>
-#define nar_assert(expr) assert(expr)
-#endif
-
 typedef void *nar_runtime_t;
 
 typedef size_t nar_size_t;
