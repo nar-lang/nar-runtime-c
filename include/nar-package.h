@@ -126,9 +126,9 @@ typedef struct {
 
     nar_closure_t (*to_closure)(nar_runtime_t rt, nar_object_t obj);
 
-    void *(*new_serialized_object)(nar_runtime_t rt, nar_object_t obj);
+    nar_serialized_object_t (*new_serialized_object)(nar_runtime_t rt, nar_object_t obj);
 
-    nar_object_t (*deserialize_object)(nar_runtime_t rt, void *obj);
+    nar_object_t (*deserialize_object)(nar_runtime_t rt, nar_serialized_object_t obj);
 } nar_t;
 
 typedef nar_int_t (*init_fn_t)(const nar_t *, nar_runtime_t);

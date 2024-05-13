@@ -27,6 +27,7 @@ typedef void *nar_cptr_t;
 typedef nar_int_t (*nar_cmp_native_fn_t)(nar_runtime_t rt, nar_cptr_t a, nar_cptr_t b);
 typedef void (*nar_stdout_fn_t)(nar_runtime_t rt, nar_cstring_t message);
 typedef uint64_t nar_object_t;
+typedef void *nar_serialized_object_t;
 
 typedef struct {
     nar_cptr_t ptr;

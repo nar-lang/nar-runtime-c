@@ -541,12 +541,12 @@ void serialize_object(runtime_t *rt, nar_object_t obj, vector_t *mem) {
     }
 }
 
-void *nar_new_serialized_object(nar_runtime_t rt, nar_object_t obj) {
+nar_serialized_object_t nar_new_serialized_object(nar_runtime_t rt, nar_object_t obj) {
     runtime_t *r = (runtime_t *) rt;
     vector_t *mem = rvector_new(sizeof(nar_byte_t), 0);
     serialize_object(r, obj, mem);
 
-    void *data = mem->data;
+    nar_serialized_object_t data = mem->data;
     mem->data = NULL;
     vector_free(mem);
     return data;
@@ -652,6 +652,6 @@ nar_object_t deserialize_object(runtime_t *rt, nar_byte_t **mem) {
     }
 }
 
-nar_object_t nar_deserialize_object(nar_runtime_t rt, void *mem) {
+nar_object_t nar_deserialize_object(nar_runtime_t rt, nar_serialized_object_t mem) {
     return deserialize_object((runtime_t *) rt, (nar_byte_t **) &mem);
 }

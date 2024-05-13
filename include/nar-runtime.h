@@ -137,8 +137,8 @@ nar_object_t nar_make_closure(
 
 nar_closure_t nar_to_closure(nar_runtime_t rt, nar_object_t obj);
 
-void *nar_new_serialized_object(nar_runtime_t rt, nar_object_t obj);
+nar_serialized_object_t nar_new_serialized_object(nar_runtime_t rt, nar_object_t obj);
 
-nar_object_t nar_deserialize_object(nar_runtime_t rt, void *obj);
+nar_object_t nar_deserialize_object(nar_runtime_t rt, nar_serialized_object_t obj);
 
 #endif //NAR_RUNTIME_H
