@@ -160,6 +160,12 @@ nar_runtime_t nar_runtime_new(nar_bytecode_t btc) {
     return rt;
 }
 
+void nar_runtime_replace_program(nar_runtime_t rt, nar_bytecode_t btc) {
+    runtime_t * r = ((runtime_t *) rt);
+    nar_bytecode_free(r->program);
+    r->program = btc;
+}
+
 void library_free(void *handle) {
 #if defined(NAR_UNIX) || defined(NAR_APPLE)
     dlclose(handle);
@@ -189,6 +195,7 @@ void nar_runtime_free(nar_runtime_t rt) {
         vector_free(r->lib_handles);
         nar_free(r->package_pointers);
         hashmap_free(r->metadata);
+        nar_bytecode_free(r->program);
         nar_free(rt);
     }
 }

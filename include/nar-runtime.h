@@ -26,6 +26,8 @@ void nar_bytecode_free(nar_bytecode_t bc);
 
 nar_runtime_t nar_runtime_new(nar_bytecode_t btc);
 
+void nar_runtime_replace_program(nar_runtime_t rt, nar_bytecode_t btc);
+
 void nar_runtime_free(nar_runtime_t rt);
 
 void nar_set_metadata(nar_runtime_t rt, nar_cstring_t key, nar_cptr_t value);

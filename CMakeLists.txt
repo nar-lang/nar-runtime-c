@@ -43,6 +43,7 @@ add_library(nar-runtime-c STATIC
 )
 
 add_executable(nare main.c)
+target_include_directories(nare PRIVATE ~/.nar/include)
 
 add_compile_definitions(CVECTOR_LOGARITHMIC_GROWTH)
 
