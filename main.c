@@ -17,8 +17,6 @@ void clean_and_exit(nar_runtime_t rt, nar_int_t code) {
     exit((int) code);
 }
 
-void update() {}
-
 int main(int argc, char *argv[]) {
     nar_runtime_t rt = NULL;
     setlocale(LC_ALL, ".UTF8");
@@ -124,7 +122,7 @@ int main(int argc, char *argv[]) {
 
     nar_program_execute_fn_t execute = nar_get_metadata(rt, NAR_META__Nar_Program_execute);
     if (execute != NULL) {
-        errno = execute(rt, result_obj, NULL, update);
+        errno = execute(rt, result_obj, NULL);
         if (nar_get_error(rt) != NULL) {
             printf("Error: could not execute_program program (error message: %s)\n",
                     nar_get_error(rt));

@@ -316,6 +316,7 @@ void nar_fail(nar_runtime_t rt, nar_cstring_t message) {
     } else {
         r->last_error = string_dup(msg_with_stack);
     }
+    printf("%s", msg_with_stack);
     nar_free(msg_with_stack);
 }
 
