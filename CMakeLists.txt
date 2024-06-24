@@ -17,9 +17,10 @@ project(
 add_library(nar-runtime SHARED
         bytecode.c
         bytecode.h
+        enums.c
         execute.c
-        hashmap/hashmap.c
-        hashmap/hashmap.h
+        include/hashmap/hashmap.c
+        include/hashmap/hashmap.h
         include/fchar.h
         include/vector.h
         memory.c
@@ -31,9 +32,10 @@ add_library(nar-runtime SHARED
 add_library(nar-runtime-c STATIC
         bytecode.c
         bytecode.h
+        enums.c
         execute.c
-        hashmap/hashmap.c
-        hashmap/hashmap.h
+        include/hashmap/hashmap.c
+        include/hashmap/hashmap.h
         include/fchar.h
         include/vector.h
         memory.c

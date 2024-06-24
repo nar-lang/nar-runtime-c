@@ -38,7 +38,7 @@ int main(int argc, char *argv[]) {
         }
 
         if (0 == strcmp(program_path, "--version")) {
-            printf("NarVM version 1.0.1\n"); //TODO: implement versioning
+            printf("Nar executor version 1.0.1\n"); //TODO: implement versioning
             return 0;
         }
 

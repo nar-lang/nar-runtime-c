@@ -85,6 +85,23 @@ static void vector_push(vector_t *v, size_t n, const void *items) {
     v->size += n;
 }
 
+static void vector_insert(vector_t *v, size_t index, size_t n, const void *items) {
+    if (index > v->size) {
+        v->fail(NULL, "vector_insert: index > v->size");
+        return;
+    }
+    if (n == 0) {
+        return;
+    }
+    __ensure_capacity(v, v->size + n);
+    if (index < v->size) {
+        memmove((char *) v->data + (index + n) * v->item_size,
+                (char *) v->data + index * v->item_size, (v->size - index) * v->item_size);
+    }
+    memcpy((char *) v->data + index * v->item_size, items, n * v->item_size);
+    v->size += n;
+}
+
 static void vector_pop(vector_t *v, size_t n, void *items) {
     if (n == 0) {
         return;
@@ -150,6 +167,18 @@ static void vector_clear(vector_t *v) {
         return;
     }
     v->size = 0;
+}
+
+static void vector_remove(vector_t *v, size_t index) {
+    if (index >= v->size) {
+        v->fail(NULL, "vector_remove: index >= v->size");
+        return;
+    }
+    if (index < v->size - 1) {
+        memmove((char *) v->data + index * v->item_size,
+                (char *) v->data + (index + 1) * v->item_size, (v->size - index - 1) * v->item_size);
+    }
+    v->size--;
 }
 
 static void vector_remove_fast_loosing_order(vector_t *v, size_t index) {

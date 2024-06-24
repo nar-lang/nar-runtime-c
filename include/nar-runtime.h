@@ -85,7 +85,7 @@ nar_object_t nar_make_string(nar_runtime_t rt, nar_cstring_t value);
 nar_cstring_t nar_to_string(nar_runtime_t rt, nar_object_t obj);
 
 nar_object_t nar_make_record(
-        nar_runtime_t rt, nar_size_t size, const nar_string_t *keys, const nar_object_t *values);
+        nar_runtime_t rt, nar_size_t size, const nar_cstring_t *keys, const nar_object_t *values);
 
 nar_object_t nar_make_record_field(
         nar_runtime_t rt, nar_object_t record, nar_cstring_t key, nar_object_t value);
@@ -96,6 +96,8 @@ nar_object_t nar_make_record_field_obj(
 nar_object_t nar_make_record_raw(nar_runtime_t rt, size_t num_fields, const nar_object_t *stack);
 
 nar_record_t nar_to_record(nar_runtime_t rt, nar_object_t obj);
+
+void nar_map_record(nar_runtime_t rt, nar_object_t obj, void *result, nar_map_record_cb_fn_t map);
 
 nar_object_t nar_to_record_field(nar_runtime_t rt, nar_object_t obj, nar_cstring_t key);
 
@@ -142,5 +144,21 @@ nar_closure_t nar_to_closure(nar_runtime_t rt, nar_object_t obj);
 nar_serialized_object_t nar_new_serialized_object(nar_runtime_t rt, nar_object_t obj);
 
 nar_object_t nar_deserialize_object(nar_runtime_t rt, nar_serialized_object_t obj);
+
+// various helpers
+
+nar_bool_t nar_to_enum_option_s(nar_runtime_t rt, nar_object_t opt, nar_int_t *value);
+
+nar_int_t nar_to_enum_option(nar_runtime_t rt, nar_object_t opt);
+
+nar_int_t nar_to_enum_option_flags(nar_runtime_t rt, nar_object_t list);
+
+nar_object_t nar_make_enum_option(nar_runtime_t rt,
+        nar_cstring_t type, nar_int_t value, nar_size_t size, const nar_object_t *items);
+
+nar_object_t nar_make_enum_option_flags(nar_runtime_t rt,
+        nar_cstring_t type, nar_int_t flags);
+
+void nar_enum_def(nar_cstring_t type, nar_cstring_t option, nar_int_t value);
 
 #endif //NAR_RUNTIME_H

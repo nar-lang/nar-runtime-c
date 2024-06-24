@@ -151,7 +151,7 @@ nar_cstring_t nar_to_string(nar_runtime_t rt, nar_object_t obj) {
 }
 
 nar_object_t nar_make_record(
-        nar_runtime_t rt, nar_size_t size, const nar_string_t *keys, const nar_object_t *values) {
+        nar_runtime_t rt, nar_size_t size, const nar_cstring_t *keys, const nar_object_t *values) {
     nar_object_t prev = build_object(NAR_OBJECT_KIND_RECORD, NAR_INVALID_INDEX);
     for (size_t i = 0; i < size; i++) {
         prev = nar_make_record_field_obj(rt, prev, nar_make_string(rt, keys[i]), values[i]);
@@ -220,6 +220,25 @@ nar_record_t nar_to_record(nar_runtime_t rt, nar_object_t obj) {
     }
     hashmap_free(map);
     return record;
+}
+
+void nar_map_record(nar_runtime_t rt, nar_object_t obj, void* result, nar_map_record_cb_fn_t map) {
+    if (!nar_index_is_valid(rt, obj)) {
+        return;
+    }
+
+    hashmap_t *set_keys = hashmap_new(sizeof(key_value_t), 0, 0, 0,
+            &key_value_hash, &key_value_compare, NULL, NULL);
+    while (nar_index_is_valid(rt, obj)) {
+        nar_record_item_t f = nar_to_record_item(rt, obj);
+        nar_cstring_t key = nar_to_string(rt, f.key);
+        if (NULL == hashmap_set(set_keys, &(key_value_t) {.key = key})) {
+            map(rt, key, f.value, result);
+        }
+        obj = f.parent;
+    }
+
+    hashmap_free(set_keys);
 }
 
 nar_object_t nar_to_record_field(nar_runtime_t rt, nar_object_t obj, nar_cstring_t key) {

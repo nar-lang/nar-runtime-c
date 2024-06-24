@@ -2,7 +2,7 @@
 #define NAR_RUNTIME_BYTECODE_H
 
 #include "include/nar.h"
-#include "hashmap/hashmap.h"
+#include "include/hashmap/hashmap.h"
 #include <stdint.h>
 
 typedef uint32_t version_t;

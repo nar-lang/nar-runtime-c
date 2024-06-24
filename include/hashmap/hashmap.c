@@ -8,7 +8,6 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "hashmap.h"
-#include "../include/nar-runtime.h"
 
 #define GROW_AT   0.60 /* 60% */
 #define SHRINK_AT 0.10 /* 10% */
@@ -17,9 +16,9 @@
 #define HASHMAP_LOAD_FACTOR GROW_AT
 #endif
 
-static void *(*__malloc)(size_t) = nar_alloc;
-static void *(*__realloc)(void *, size_t) = nar_realloc;
-static void (*__free)(void *) = nar_free;
+static void *(*__malloc)(size_t) = malloc;
+static void *(*__realloc)(void *, size_t) = realloc;
+static void (*__free)(void *) = free;
 
 // hashmap_set_allocator allows for configuring a custom allocator for
 // all hashmap library operations. This function, if needed, should be called

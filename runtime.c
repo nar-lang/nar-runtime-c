@@ -102,6 +102,7 @@ nar_runtime_t nar_runtime_new(nar_bytecode_t btc) {
     rt->package_pointers->make_record_field_obj = &nar_make_record_field_obj;
     rt->package_pointers->make_record_raw = &nar_make_record_raw;
     rt->package_pointers->to_record = &nar_to_record;
+    rt->package_pointers->map_record = &nar_map_record;
     rt->package_pointers->to_record_field = &nar_to_record_field;
     rt->package_pointers->to_record_item = &nar_to_record_item;
     rt->package_pointers->make_list_cons = &nar_make_list_cons;
@@ -124,6 +125,13 @@ nar_runtime_t nar_runtime_new(nar_bytecode_t btc) {
     rt->package_pointers->to_closure = &nar_to_closure;
     rt->package_pointers->new_serialized_object = &nar_new_serialized_object;
     rt->package_pointers->deserialize_object = &nar_deserialize_object;
+
+    rt->package_pointers->to_enum_option_s = &nar_to_enum_option_s;
+    rt->package_pointers->to_enum_option = &nar_to_enum_option;
+    rt->package_pointers->to_enum_option_flags = &nar_to_enum_option_flags;
+    rt->package_pointers->make_enum_option = &nar_make_enum_option;
+    rt->package_pointers->make_enum_option_flags = &nar_make_enum_option_flags;
+    rt->package_pointers->enum_def = &nar_enum_def;
 
     rt->program = btc;
     rt->native_defs = hashmap_new(sizeof(native_def_item_t), 128, 0, 0,

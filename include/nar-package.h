@@ -71,7 +71,7 @@ typedef struct {
     nar_cstring_t (*to_string)(nar_runtime_t rt, nar_object_t obj);
 
     nar_object_t (*make_record)(
-            nar_runtime_t rt, nar_size_t size, const nar_string_t *keys,
+            nar_runtime_t rt, nar_size_t size, const nar_cstring_t *keys,
             const nar_object_t *values);
 
     nar_object_t (*make_record_field)(
@@ -83,6 +83,9 @@ typedef struct {
     nar_object_t (*make_record_raw)(nar_runtime_t rt, size_t size, const nar_object_t *stack);
 
     nar_record_t (*to_record)(nar_runtime_t rt, nar_object_t obj);
+
+    void (*map_record)(
+            nar_runtime_t rt, nar_object_t obj, void *result, nar_map_record_cb_fn_t map);
 
     nar_object_t (*to_record_field)(nar_runtime_t rt, nar_object_t obj, nar_cstring_t key);
 
@@ -129,6 +132,20 @@ typedef struct {
     nar_serialized_object_t (*new_serialized_object)(nar_runtime_t rt, nar_object_t obj);
 
     nar_object_t (*deserialize_object)(nar_runtime_t rt, nar_serialized_object_t obj);
+
+    // various helpers
+    nar_bool_t (*to_enum_option_s)(nar_runtime_t rt, nar_object_t opt, nar_int_t *value);
+
+    nar_int_t (*to_enum_option)(nar_runtime_t rt, nar_object_t opt);
+
+    nar_int_t (*to_enum_option_flags)(nar_runtime_t rt, nar_object_t list);
+
+    nar_object_t (*make_enum_option)(nar_runtime_t rt,
+            nar_cstring_t type, nar_int_t value, nar_size_t size, const nar_object_t *items);
+
+    nar_object_t (*make_enum_option_flags)(nar_runtime_t rt, nar_cstring_t type, nar_int_t flags);
+
+    void (*enum_def)(nar_cstring_t type, nar_cstring_t option, nar_int_t value);
 } nar_t;
 
 typedef nar_int_t (*init_fn_t)(const nar_t *, nar_runtime_t);

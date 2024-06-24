@@ -4,7 +4,7 @@
 #include "include/nar-runtime.h"
 #include "runtime.h"
 
-//#define MEMORY_DEBUG
+#define MEMORY_DEBUG
 
 #ifdef MEMORY_DEBUG
 vector_t *memory_indices;
@@ -18,7 +18,7 @@ nar_ptr_t nar_alloc(nar_size_t size) {
 
 #ifdef MEMORY_DEBUG
     if (memory_indices == NULL) {
-        memory_indices = vector_new(sizeof(size_t), 0, realloc, free);
+        memory_indices = vector_new(sizeof(size_t), 0, realloc, free, &nar_fail);
     }
     size_t index = memory_index++;
     vector_push(memory_indices, 1, &index);

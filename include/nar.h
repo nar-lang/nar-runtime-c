@@ -111,4 +111,7 @@ static const nar_object_t NAR_INVALID_OBJECT = 0;
 
 static const nar_object_t NAR_INVALID_INDEX = 0x0080000000000000;
 
+typedef void (*nar_map_record_cb_fn_t)(
+        nar_runtime_t rt, nar_cstring_t key, nar_object_t value, void *result);
+
 #endif // NAR_H

@@ -2,7 +2,7 @@
 #define NAR_RUNTIME_RUNTIME_H
 
 #include "include/nar-package.h"
-#include "hashmap/hashmap.h"
+#include "include/hashmap/hashmap.h"
 #include "bytecode.h"
 #include "include/vector.h"
 
